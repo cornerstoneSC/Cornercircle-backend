@@ -115,6 +115,10 @@ public class HomepageService {
         return toResponse(saved);
     }
 
+    public ImageUploadResponse uploadGalleryImage(MultipartFile file) {
+        return cloudinaryService.uploadImage(file, "homepage-gallery");
+    }
+
     public HomepageResponse getHomepage() {
         HomepageContent homepage =
                 homepageRepository.findById(HOMEPAGE_ID)

@@ -3,6 +3,7 @@ package com.cornercircle.backend.homepage.controller;
 import com.cornercircle.backend.homepage.dto.HomepageResponse;
 import com.cornercircle.backend.homepage.dto.HomepageContentRequest;
 import com.cornercircle.backend.homepage.service.HomepageService;
+import com.cornercircle.backend.media.dto.ImageUploadResponse;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -68,6 +69,14 @@ public class HomepageController {
             @RequestParam("file") MultipartFile file) {
         authorize(suppliedSecret);
         return ResponseEntity.ok(homepageService.uploadNewsletterImage(file));
+    }
+
+    @PostMapping(value = "/gallery/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ImageUploadResponse> uploadGalleryImage(
+            @RequestHeader(value = "X-Admin-Content-Secret", required = false) String suppliedSecret,
+            @RequestParam("file") MultipartFile file) {
+        authorize(suppliedSecret);
+        return ResponseEntity.ok(homepageService.uploadGalleryImage(file));
     }
 
     @GetMapping
