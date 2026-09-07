@@ -62,6 +62,14 @@ public class HomepageController {
         return ResponseEntity.ok(homepageService.uploadFounderImage(file));
     }
 
+    @PostMapping(value = "/newsletter/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<HomepageResponse> uploadNewsletterImage(
+            @RequestHeader(value = "X-Admin-Content-Secret", required = false) String suppliedSecret,
+            @RequestParam("file") MultipartFile file) {
+        authorize(suppliedSecret);
+        return ResponseEntity.ok(homepageService.uploadNewsletterImage(file));
+    }
+
     @GetMapping
     public ResponseEntity<HomepageResponse> getHomepage(){
         HomepageResponse homepage = homepageService.getHomepage();

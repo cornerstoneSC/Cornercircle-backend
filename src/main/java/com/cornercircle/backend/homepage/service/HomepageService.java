@@ -106,6 +106,15 @@ public class HomepageService {
         return toResponse(saved);
     }
 
+    public HomepageResponse uploadNewsletterImage(MultipartFile file) {
+        HomepageContent homepage = homepageRepository.findById(HOMEPAGE_ID).orElseGet(HomepageContent::new);
+        ImageUploadResponse uploadResult = cloudinaryService.uploadImage(file, "homepage-newsletter");
+        homepage.setNewsletterImageUrl(uploadResult.url());
+        homepage.setNewsletterImagePublicId(uploadResult.publicId());
+        HomepageContent saved = homepageRepository.save(homepage);
+        return toResponse(saved);
+    }
+
     public HomepageResponse getHomepage() {
         HomepageContent homepage =
                 homepageRepository.findById(HOMEPAGE_ID)
@@ -122,6 +131,8 @@ public class HomepageService {
                 homepage.getBeliefsImageUrl(), homepage.getBeliefsImagePublicId());
         response.setFounderImageUrl(homepage.getFounderImageUrl());
         response.setFounderImagePublicId(homepage.getFounderImagePublicId());
+        response.setNewsletterImageUrl(homepage.getNewsletterImageUrl());
+        response.setNewsletterImagePublicId(homepage.getNewsletterImagePublicId());
         response.setContentJson(homepage.getContentJson());
         return response;
     }

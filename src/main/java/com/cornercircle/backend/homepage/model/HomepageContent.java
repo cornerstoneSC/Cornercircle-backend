@@ -23,6 +23,8 @@ public class HomepageContent {
     private String beliefsImagePublicId;
     private String founderImageUrl;
     private String founderImagePublicId;
+    private String newsletterImageUrl;
+    private String newsletterImagePublicId;
 
     @Lob
     @Column(name = "content_json", columnDefinition = "TEXT")
@@ -39,6 +41,10 @@ public class HomepageContent {
     public void setFounderImageUrl(String value) { founderImageUrl = value; }
     public String getFounderImagePublicId() { return founderImagePublicId; }
     public void setFounderImagePublicId(String value) { founderImagePublicId = value; }
+    public String getNewsletterImageUrl() { return newsletterImageUrl; }
+    public void setNewsletterImageUrl(String value) { newsletterImageUrl = value; }
+    public String getNewsletterImagePublicId() { return newsletterImagePublicId; }
+    public void setNewsletterImagePublicId(String value) { newsletterImagePublicId = value; }
 
     @Column(name = "upcoming_events_enabled", nullable = false)
     private boolean upcomingEventsEnabled = true;
