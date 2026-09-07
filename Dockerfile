@@ -10,5 +10,6 @@ WORKDIR /app
 RUN useradd --system --uid 10001 spring
 COPY --from=build --chown=spring:spring /workspace/target/cornercircle-backend-*.jar app.jar
 USER spring
+ENV SPRING_PROFILES_ACTIVE=prod
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
