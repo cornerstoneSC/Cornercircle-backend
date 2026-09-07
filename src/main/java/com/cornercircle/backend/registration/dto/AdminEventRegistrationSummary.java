@@ -5,5 +5,6 @@ import java.math.BigDecimal;
 public record AdminEventRegistrationSummary(
     long paidRegistrations,
     long ticketsSold,
-    BigDecimal revenue
+    BigDecimal revenue,
+    long checkedInTickets
 ) {}

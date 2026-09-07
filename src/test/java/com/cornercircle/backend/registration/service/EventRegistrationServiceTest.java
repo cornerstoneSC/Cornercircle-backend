@@ -29,7 +29,7 @@ class EventRegistrationServiceTest {
     void setUp() {
         events = mock(EventRepository.class);
         registrations = mock(EventRegistrationRepository.class);
-        service = new EventRegistrationService(events, registrations, "");
+        service = new EventRegistrationService(events, registrations, "", new TicketTokenService("abcdefghijklmnopqrstuvwxyz123456"), "http://localhost:3000");
         when(registrations.save(any(EventRegistration.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
 

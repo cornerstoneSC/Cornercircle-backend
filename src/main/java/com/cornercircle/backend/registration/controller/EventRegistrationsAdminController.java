@@ -1,6 +1,7 @@
 package com.cornercircle.backend.registration.controller;
 
-import com.cornercircle.backend.registration.dto.AdminEventRegistrationsResponse;
+import com.cornercircle.backend.registration.dto.*;
+import jakarta.validation.Valid;
 import com.cornercircle.backend.registration.service.EventRegistrationsAdminService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -29,6 +30,27 @@ public class EventRegistrationsAdminController {
         @RequestParam(defaultValue = "") String event) {
         authorize(authorization);
         return service.list(query, event);
+    }
+
+    @PostMapping("/check-in/validate")
+    public TicketCheckInResponse validate(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                           @Valid @RequestBody TicketCheckInRequest request) {
+        authorize(authorization);
+        return service.validate(request.ticketToken());
+    }
+
+    @PostMapping("/check-in")
+    public TicketCheckInResponse checkIn(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                          @Valid @RequestBody TicketCheckInRequest request) {
+        authorize(authorization);
+        return service.checkIn(request.ticketToken());
+    }
+
+    @DeleteMapping("/check-in")
+    public TicketCheckInResponse undo(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                       @Valid @RequestBody TicketCheckInRequest request) {
+        authorize(authorization);
+        return service.undo(request.ticketToken());
     }
 
     private void authorize(String authorization) {

@@ -14,9 +14,11 @@ import java.util.Locale;
 @Service
 public class EventRegistrationsAdminService {
     private final EventRegistrationRepository registrations;
+    private final TicketTokenService tickets;
 
-    public EventRegistrationsAdminService(EventRegistrationRepository registrations) {
+    public EventRegistrationsAdminService(EventRegistrationRepository registrations, TicketTokenService tickets) {
         this.registrations = registrations;
+        this.tickets = tickets;
     }
 
     @Transactional(readOnly = true)
@@ -36,8 +38,9 @@ public class EventRegistrationsAdminService {
             .toList();
         long tickets = paid.stream().mapToLong(EventRegistration::getGuestCount).sum();
         BigDecimal revenue = paid.stream().map(EventRegistration::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        long checkedIn = paid.stream().filter(item -> item.getCheckedInAt() != null).mapToLong(EventRegistration::getGuestCount).sum();
         return new AdminEventRegistrationsResponse(
-            new AdminEventRegistrationSummary(paid.size(), tickets, revenue), visible);
+            new AdminEventRegistrationSummary(paid.size(), tickets, revenue, checkedIn), visible);
     }
 
     private AdminEventRegistrationResponse toResponse(EventRegistration registration) {
@@ -46,7 +49,45 @@ public class EventRegistrationsAdminService {
             registration.getPublicId(), registration.getFullName(), registration.getEmail(), registration.getPhone(),
             registration.getEvent().getTitle(), registration.getEvent().getSlug(), registration.getGuestCount(),
             registration.getTotalAmount(), "PAID", registration.getConfirmedAt() == null ? registration.getCreatedAt() : registration.getConfirmedAt(),
-            "CSC-" + compactId
+            "CSC-" + compactId, registration.getCheckedInAt(), tickets.issue(registration.getPublicId())
         );
+    }
+
+    @Transactional(readOnly = true)
+    public TicketCheckInResponse validate(String ticketToken) {
+        EventRegistration registration = findConfirmed(ticketToken);
+        return response(registration, registration.getCheckedInAt() == null ? "VALID" : "ALREADY_CHECKED_IN");
+    }
+
+    @Transactional
+    public TicketCheckInResponse checkIn(String ticketToken) {
+        EventRegistration registration = findConfirmed(ticketToken);
+        if (registration.getCheckedInAt() != null) return response(registration, "ALREADY_CHECKED_IN");
+        registration.checkIn();
+        registrations.save(registration);
+        return response(registration, "CHECKED_IN");
+    }
+
+    @Transactional
+    public TicketCheckInResponse undo(String ticketToken) {
+        EventRegistration registration = findConfirmed(ticketToken);
+        registration.undoCheckIn();
+        registrations.save(registration);
+        return response(registration, "VALID");
+    }
+
+    private EventRegistration findConfirmed(String ticketToken) {
+        var id = tickets.verify(ticketToken);
+        var registration = registrations.findByPublicId(id)
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Ticket not found."));
+        if (registration.getStatus() != EventRegistrationStatus.CONFIRMED)
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "This registration is not confirmed.");
+        return registration;
+    }
+
+    private TicketCheckInResponse response(EventRegistration registration, String status) {
+        String compactId = registration.getPublicId().toString().replace("-", "").substring(0, 12).toUpperCase(Locale.ROOT);
+        return new TicketCheckInResponse(status, "CSC-" + compactId, registration.getFullName(), registration.getEmail(),
+            registration.getGuestCount(), registration.getEvent().getTitle(), registration.getEvent().getSlug(), registration.getCheckedInAt());
     }
 }

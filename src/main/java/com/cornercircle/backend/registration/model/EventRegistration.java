@@ -21,11 +21,15 @@ public class EventRegistration {
  private LocalDateTime policyAcceptedAt;
  @Column(nullable=false,updatable=false) private LocalDateTime createdAt;
  private LocalDateTime confirmedAt;
+ private LocalDateTime checkedInAt;
  protected EventRegistration() {}
  public EventRegistration(Event event,String fullName,String email,String phone,int guestCount,BigDecimal totalAmount,EventRegistrationStatus status){this.publicId=UUID.randomUUID();this.event=event;this.fullName=fullName.trim();this.email=email.trim().toLowerCase();this.phone=phone==null?"":phone.trim();this.guestCount=guestCount;this.totalAmount=totalAmount;setStatus(status);}
  @PrePersist void created(){if(publicId==null)publicId=UUID.randomUUID();createdAt=LocalDateTime.now();}
  public UUID getPublicId(){return publicId;} public Event getEvent(){return event;} public String getFullName(){return fullName;} public String getEmail(){return email;} public String getPhone(){return phone;} public Integer getGuestCount(){return guestCount;} public BigDecimal getTotalAmount(){return totalAmount;} public EventRegistrationStatus getStatus(){return status;} public String getStripeCheckoutSessionId(){return stripeCheckoutSessionId;} public LocalDateTime getCreatedAt(){return createdAt;} public LocalDateTime getConfirmedAt(){return confirmedAt;}
  public String getAcceptedPolicyVersion(){return acceptedPolicyVersion;} public LocalDateTime getPolicyAcceptedAt(){return policyAcceptedAt;}
+ public LocalDateTime getCheckedInAt(){return checkedInAt;}
+ public void checkIn(){if(checkedInAt==null)checkedInAt=LocalDateTime.now();}
+ public void undoCheckIn(){checkedInAt=null;}
  public void recordPolicyAcceptance(String version){acceptedPolicyVersion=version;policyAcceptedAt=LocalDateTime.now();}
  public void setStripeCheckoutSessionId(String value){stripeCheckoutSessionId=value;} public void setStatus(EventRegistrationStatus value){status=value;if(value==EventRegistrationStatus.CONFIRMED&&confirmedAt==null)confirmedAt=LocalDateTime.now();}
  public String getStripePaymentIntentId(){return stripePaymentIntentId;} public void setStripePaymentIntentId(String value){stripePaymentIntentId=value;}

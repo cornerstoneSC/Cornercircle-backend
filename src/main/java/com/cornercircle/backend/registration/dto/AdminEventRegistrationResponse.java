@@ -15,5 +15,7 @@ public record AdminEventRegistrationResponse(
     BigDecimal amountPaid,
     String paymentStatus,
     LocalDateTime registrationDate,
-    String confirmationNumber
+    String confirmationNumber,
+    LocalDateTime checkedInAt,
+    String ticketToken
 ) {}

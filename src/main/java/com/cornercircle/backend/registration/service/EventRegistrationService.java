@@ -11,6 +11,9 @@ import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import com.stripe.param.PaymentIntentCreateParams;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.qrcode.QRCodeWriter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,6 +25,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.UUID;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeFormatter;
 
 @Service
 public class EventRegistrationService {
@@ -29,12 +35,17 @@ public class EventRegistrationService {
     private final EventRepository events;
     private final EventRegistrationRepository registrations;
     private final String secretKey;
+    private final TicketTokenService tickets;
+    private final String frontendUrl;
 
     public EventRegistrationService(EventRepository events, EventRegistrationRepository registrations,
-                                    @Value("${stripe.secret-key:}") String secretKey) {
+                                    @Value("${stripe.secret-key:}") String secretKey, TicketTokenService tickets,
+                                    @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}") String frontendUrl) {
         this.events = events;
         this.registrations = registrations;
         this.secretKey = secretKey;
+        this.tickets = tickets;
+        this.frontendUrl = frontendUrl.replaceAll("/+$", "");
     }
 
     @Transactional
@@ -101,6 +112,65 @@ public class EventRegistrationService {
         var registration = registrations.findByPublicId(registrationId)
                 .filter(item -> item.getEvent().getSlug().equals(slug))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Registration not found."));
-        return new EventRegistrationStatusResponse(registration.getPublicId(), registration.getStatus().name(), registration.getEmail());
+        var event = registration.getEvent();
+        String compactId = registration.getPublicId().toString().replace("-", "").substring(0, 12).toUpperCase(java.util.Locale.ROOT);
+        String ticketToken = registration.getStatus() == EventRegistrationStatus.CONFIRMED
+                ? tickets.issue(registration.getPublicId()) : null;
+        return new EventRegistrationStatusResponse(
+                registration.getPublicId(), registration.getStatus().name(), registration.getEmail(),
+                registration.getFullName(), registration.getGuestCount(), "CSC-" + compactId, ticketToken,
+                event.getTitle(), event.getEventDate(), event.getStartTime(), event.getEndTime(), event.getTimeZone(),
+                event.getVenueName(), event.getAddress(), event.getCity(), event.getState(), event.getZipCode());
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] qrCode(String slug, UUID registrationId) {
+        var registration = confirmed(slug, registrationId);
+        String value = frontendUrl + "/admin/check-in?ticket=" + java.net.URLEncoder.encode(
+                tickets.issue(registration.getPublicId()), StandardCharsets.UTF_8);
+        try {
+            var matrix = new QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, 420, 420);
+            var output = new ByteArrayOutputStream();
+            MatrixToImageWriter.writeToStream(matrix, "PNG", output);
+            return output.toByteArray();
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Unable to create ticket QR code.");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public String calendar(String slug, UUID registrationId) {
+        var registration = confirmed(slug, registrationId);
+        var event = registration.getEvent();
+        ZoneId zone;
+        try { zone = ZoneId.of(event.getTimeZone()); } catch (Exception ignored) { zone = ZoneId.of("America/Los_Angeles"); }
+        var start = event.getEventDate().atTime(event.getStartTime()).atZone(zone).withZoneSameInstant(java.time.ZoneOffset.UTC);
+        var end = event.getEventDate().atTime(event.getEndTime()).atZone(zone).withZoneSameInstant(java.time.ZoneOffset.UTC);
+        var format = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'");
+        String location = java.util.stream.Stream.of(event.getVenueName(), event.getAddress(), event.getCity(), event.getState(), event.getZipCode())
+                .filter(value -> value != null && !value.isBlank()).collect(java.util.stream.Collectors.joining(", "));
+        return "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Cornerstone Social Circle//Events//EN\r\n" +
+                "BEGIN:VEVENT\r\nUID:" + registration.getPublicId() + "@cornerstonesocialcircle.com\r\n" +
+                "DTSTAMP:" + java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC).format(format) + "\r\n" +
+                "DTSTART:" + start.format(format) + "\r\nDTEND:" + end.format(format) + "\r\n" +
+                "SUMMARY:" + ics(event.getTitle()) + "\r\nLOCATION:" + ics(location) + "\r\n" +
+                "DESCRIPTION:Confirmation " + confirmation(registration) + "\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+    }
+
+    private EventRegistration confirmed(String slug, UUID registrationId) {
+        var registration = registrations.findByPublicId(registrationId)
+                .filter(item -> item.getEvent().getSlug().equals(slug))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Registration not found."));
+        if (registration.getStatus() != EventRegistrationStatus.CONFIRMED)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Registration is not confirmed.");
+        return registration;
+    }
+
+    private String confirmation(EventRegistration registration) {
+        return "CSC-" + registration.getPublicId().toString().replace("-", "").substring(0, 12).toUpperCase(java.util.Locale.ROOT);
+    }
+
+    private String ics(String value) {
+        return value == null ? "" : value.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n");
     }
 }
