@@ -25,7 +25,7 @@ public class StripeCheckoutGateway implements CheckoutGateway {
     }
 
     @Override
-    public CheckoutResult createAnnualMembershipCheckout(UUID applicationId, String customerEmail) {
+    public CheckoutResult createAnnualMembershipCheckout(UUID applicationId, String customerEmail, boolean renewal) {
         requireConfigured();
         var metadataValue = applicationId.toString();
         var params = SessionCreateParams.builder()
@@ -36,7 +36,10 @@ public class StripeCheckoutGateway implements CheckoutGateway {
             .setCancelUrl(frontendUrl + "/membership?payment=cancelled")
             .setAllowPromotionCodes(true)
             .putMetadata("membership_application_id", metadataValue)
-            .setPaymentIntentData(SessionCreateParams.PaymentIntentData.builder().putMetadata("membership_application_id", metadataValue).build())
+            .putMetadata("membership_checkout_type", renewal ? "renewal" : "initial")
+            .setPaymentIntentData(SessionCreateParams.PaymentIntentData.builder()
+                .putMetadata("membership_application_id", metadataValue)
+                .putMetadata("membership_checkout_type", renewal ? "renewal" : "initial").build())
             .addLineItem(SessionCreateParams.LineItem.builder().setPrice(priceId).setQuantity(1L).build())
             .build();
         try {

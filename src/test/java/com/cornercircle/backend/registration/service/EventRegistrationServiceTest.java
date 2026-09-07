@@ -24,12 +24,14 @@ class EventRegistrationServiceTest {
     private EventRepository events;
     private EventRegistrationRepository registrations;
     private EventRegistrationService service;
+    private EventConfirmationEmailService confirmationEmails;
 
     @BeforeEach
     void setUp() {
         events = mock(EventRepository.class);
         registrations = mock(EventRegistrationRepository.class);
-        service = new EventRegistrationService(events, registrations, "", new TicketTokenService("abcdefghijklmnopqrstuvwxyz123456"), "http://localhost:3000");
+        confirmationEmails = mock(EventConfirmationEmailService.class);
+        service = new EventRegistrationService(events, registrations, "", new TicketTokenService("abcdefghijklmnopqrstuvwxyz123456"), "http://localhost:3000", confirmationEmails);
         when(registrations.save(any(EventRegistration.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
@@ -44,6 +46,7 @@ class EventRegistrationServiceTest {
         assertEquals("CONFIRMED", response.status());
         assertNull(response.clientSecret());
         verify(registrations).save(any(EventRegistration.class));
+        verify(confirmationEmails).sendIfNeeded(any(EventRegistration.class));
     }
 
     @Test

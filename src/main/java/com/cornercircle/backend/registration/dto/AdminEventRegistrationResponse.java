@@ -17,5 +17,7 @@ public record AdminEventRegistrationResponse(
     LocalDateTime registrationDate,
     String confirmationNumber,
     LocalDateTime checkedInAt,
-    String ticketToken
+    String ticketToken,
+    LocalDateTime confirmationEmailSentAt,
+    String confirmationEmailError
 ) {}

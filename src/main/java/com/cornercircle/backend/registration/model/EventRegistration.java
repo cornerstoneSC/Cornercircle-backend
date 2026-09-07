@@ -22,12 +22,18 @@ public class EventRegistration {
  @Column(nullable=false,updatable=false) private LocalDateTime createdAt;
  private LocalDateTime confirmedAt;
  private LocalDateTime checkedInAt;
+ private LocalDateTime confirmationEmailSentAt;
+ @Column(length=500) private String confirmationEmailError;
  protected EventRegistration() {}
  public EventRegistration(Event event,String fullName,String email,String phone,int guestCount,BigDecimal totalAmount,EventRegistrationStatus status){this.publicId=UUID.randomUUID();this.event=event;this.fullName=fullName.trim();this.email=email.trim().toLowerCase();this.phone=phone==null?"":phone.trim();this.guestCount=guestCount;this.totalAmount=totalAmount;setStatus(status);}
  @PrePersist void created(){if(publicId==null)publicId=UUID.randomUUID();createdAt=LocalDateTime.now();}
  public UUID getPublicId(){return publicId;} public Event getEvent(){return event;} public String getFullName(){return fullName;} public String getEmail(){return email;} public String getPhone(){return phone;} public Integer getGuestCount(){return guestCount;} public BigDecimal getTotalAmount(){return totalAmount;} public EventRegistrationStatus getStatus(){return status;} public String getStripeCheckoutSessionId(){return stripeCheckoutSessionId;} public LocalDateTime getCreatedAt(){return createdAt;} public LocalDateTime getConfirmedAt(){return confirmedAt;}
  public String getAcceptedPolicyVersion(){return acceptedPolicyVersion;} public LocalDateTime getPolicyAcceptedAt(){return policyAcceptedAt;}
  public LocalDateTime getCheckedInAt(){return checkedInAt;}
+ public LocalDateTime getConfirmationEmailSentAt(){return confirmationEmailSentAt;}
+ public String getConfirmationEmailError(){return confirmationEmailError;}
+ public void recordConfirmationEmailSent(){confirmationEmailSentAt=LocalDateTime.now();confirmationEmailError=null;}
+ public void recordConfirmationEmailError(String value){confirmationEmailError=value==null?null:value.substring(0,Math.min(value.length(),500));}
  public void checkIn(){if(checkedInAt==null)checkedInAt=LocalDateTime.now();}
  public void undoCheckIn(){checkedInAt=null;}
  public void recordPolicyAcceptance(String version){acceptedPolicyVersion=version;policyAcceptedAt=LocalDateTime.now();}

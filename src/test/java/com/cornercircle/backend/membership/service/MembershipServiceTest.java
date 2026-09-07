@@ -28,7 +28,7 @@ class MembershipServiceTest {
         UUID id = UUID.randomUUID();
         var application = pending(id);
         when(applications.findByPublicId(id)).thenReturn(Optional.of(application));
-        when(checkout.createAnnualMembershipCheckout(id, "member@example.com"))
+        when(checkout.createAnnualMembershipCheckout(id, "member@example.com", false))
             .thenReturn(new CheckoutGateway.CheckoutResult("cs_test_123", "https://checkout.stripe.com/test"));
         var response = service.checkout(id);
         assertEquals("https://checkout.stripe.com/test", response.checkoutUrl());
@@ -41,6 +41,26 @@ class MembershipServiceTest {
         when(applications.findByPublicId(id)).thenReturn(Optional.of(application));
         assertThrows(ResponseStatusException.class, () -> service.checkout(id));
         verifyNoInteractions(checkout);
+    }
+
+    @Test void reusesPendingApplicationForSameEmail() {
+        UUID id = UUID.randomUUID();
+        var existing = pending(id);
+        when(applications.findFirstByEmailAndStatusInOrderByCreatedAtDesc(eq("member@example.com"), any())).thenReturn(Optional.of(existing));
+        var request = new MembershipApplicationRequest("Member", "MEMBER@example.com", null, "Oakland", null,
+            "Friends", List.of("Coffee"), List.of("Community"), true, true, null);
+        var response = service.apply(request);
+        assertEquals(id, response.applicationId());
+        verify(applications, never()).save(any());
+    }
+
+    @Test void marksPastMembershipExpiredWhenStatusIsChecked() {
+        UUID id = UUID.randomUUID(); var application = pending(id);
+        application.setStatus(MembershipStatus.ACTIVE); application.setMembershipEndsOn(java.time.LocalDate.now().minusDays(1));
+        when(applications.findByPublicId(id)).thenReturn(Optional.of(application));
+        var response = service.status(id);
+        assertEquals(MembershipStatus.EXPIRED, response.status());
+        assertFalse(response.paymentComplete());
     }
 
     private static MembershipApplication pending(UUID id) {

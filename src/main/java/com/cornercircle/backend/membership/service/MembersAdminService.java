@@ -20,9 +20,11 @@ import java.util.UUID;
 public class MembersAdminService {
     private static final int ANNUAL_MEMBERSHIP_CENTS = 19_900;
     private final MembershipApplicationRepository applications;
+    private final MembershipEmailService emails;
 
-    public MembersAdminService(MembershipApplicationRepository applications) {
+    public MembersAdminService(MembershipApplicationRepository applications, MembershipEmailService emails) {
         this.applications = applications;
+        this.emails = emails;
     }
 
     @Transactional(readOnly = true)
@@ -63,6 +65,15 @@ public class MembersAdminService {
         return toResponse(application);
     }
 
+    @Transactional
+    public AdminMemberResponse sendWelcomeEmail(UUID publicId) {
+        var application = require(publicId);
+        if (paymentStatus(application).equals("EXPIRED")) throw new ResponseStatusException(HttpStatus.CONFLICT, "Expired memberships must be renewed before sending an activation email.");
+        if (application.getStatus() != MembershipStatus.ACTIVE) throw new ResponseStatusException(HttpStatus.CONFLICT, "Only active members can receive an activation email.");
+        emails.sendIfNeeded(application, false);
+        return toResponse(application);
+    }
+
     private MembershipApplication require(UUID publicId) {
         return applications.findByPublicId(publicId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Member not found."));
@@ -71,12 +82,13 @@ public class MembersAdminService {
     private AdminMemberResponse toResponse(MembershipApplication application) {
         return new AdminMemberResponse(
             application.getPublicId(), application.getFullName(), application.getEmail(), application.getPhone(),
-            application.getCity(), application.getBirthday(), paymentStatus(application), ANNUAL_MEMBERSHIP_CENTS,
+            application.getCity(), application.getBirthday(), paymentStatus(application), application.getAmountPaidCents() == null ? ANNUAL_MEMBERSHIP_CENTS : application.getAmountPaidCents(),
             application.getPaidAt(), application.getMembershipStartsOn(), application.getMembershipEndsOn(),
             application.getRenewalReminderSentAt(), List.copyOf(application.getActivities()), List.copyOf(application.getGoals()),
             application.isMembershipAgreementAccepted(), application.isPhotographyNoticeAcknowledged(),
             application.getInspiredBy(), application.getComments(), application.getInternalNotes(),
-            application.getStripeCheckoutSessionId(), application.getCreatedAt()
+            application.getStripeCheckoutSessionId(), application.getCreatedAt(), application.getWelcomeEmailSentAt(),
+            application.getWelcomeEmailError(), application.getMembershipAgreementVersion(), application.getMembershipAgreementAcceptedAt()
         );
     }
 

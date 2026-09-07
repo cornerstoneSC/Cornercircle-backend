@@ -4,6 +4,7 @@ import com.cornercircle.backend.membership.model.*;
 import com.cornercircle.backend.membership.repository.*;
 import com.cornercircle.backend.registration.model.EventRegistrationStatus;
 import com.cornercircle.backend.registration.repository.EventRegistrationRepository;
+import com.cornercircle.backend.registration.service.EventConfirmationEmailService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -19,12 +20,16 @@ public class StripeWebhookService {
     private final ProcessedStripeEventRepository events;
     private final ObjectMapper mapper;
     private final EventRegistrationRepository eventRegistrations;
+    private final EventConfirmationEmailService confirmationEmails;
+    private final MembershipEmailService membershipEmails;
 
-    public StripeWebhookService(MembershipApplicationRepository applications, ProcessedStripeEventRepository events, ObjectMapper mapper, EventRegistrationRepository eventRegistrations) {
+    public StripeWebhookService(MembershipApplicationRepository applications, ProcessedStripeEventRepository events, ObjectMapper mapper, EventRegistrationRepository eventRegistrations, EventConfirmationEmailService confirmationEmails, MembershipEmailService membershipEmails) {
         this.applications = applications;
         this.events = events;
         this.mapper = mapper;
         this.eventRegistrations = eventRegistrations;
+        this.confirmationEmails = confirmationEmails;
+        this.membershipEmails = membershipEmails;
     }
 
     @Transactional
@@ -54,12 +59,12 @@ public class StripeWebhookService {
     private void updateEventRegistration(JsonNode object, EventRegistrationStatus status) {
         String reference = text(object, "metadata", "event_registration_id");
         if (reference != null) {
-            try { eventRegistrations.findByPublicId(UUID.fromString(reference)).ifPresent(registration -> registration.setStatus(status)); }
+            try { eventRegistrations.findByPublicId(UUID.fromString(reference)).ifPresent(registration -> { registration.setStatus(status); if (status == EventRegistrationStatus.CONFIRMED) confirmationEmails.sendIfNeeded(registration); }); }
             catch (IllegalArgumentException ignored) { }
             return;
         }
         String paymentIntentId = text(object, "id");
-        if (paymentIntentId != null) eventRegistrations.findByStripePaymentIntentId(paymentIntentId).ifPresent(registration -> registration.setStatus(status));
+        if (paymentIntentId != null) eventRegistrations.findByStripePaymentIntentId(paymentIntentId).ifPresent(registration -> { registration.setStatus(status); if (status == EventRegistrationStatus.CONFIRMED) confirmationEmails.sendIfNeeded(registration); });
     }
 
     private void completeCheckout(JsonNode object) {
@@ -75,7 +80,14 @@ public class StripeWebhookService {
         application.setStripeSubscriptionId(id(object.path("subscription")));
         application.setStripePaymentIntentId(id(object.path("payment_intent")));
         String paymentStatus = text(object, "payment_status");
-        if (paymentStatus == null || "paid".equals(paymentStatus) || "no_payment_required".equals(paymentStatus)) activate(application);
+        if ("paid".equals(paymentStatus) || "no_payment_required".equals(paymentStatus)) {
+            boolean renewal = "renewal".equals(text(object, "metadata", "membership_checkout_type"));
+            Number amount = object.path("amount_total").isNumber() ? object.path("amount_total").numberValue() : null;
+            if (amount != null) application.setAmountPaidCents(amount.intValue());
+            application.setStripeCheckoutUrl(null); application.setCheckoutCreatedAt(null);
+            if (renewal) renew(application); else activate(application);
+            membershipEmails.sendIfNeeded(application, renewal);
+        }
     }
 
     private void updateByApplication(JsonNode object, MembershipStatus status) {
@@ -123,6 +135,18 @@ public class StripeWebhookService {
         if (application.getPaidAt() == null) application.setPaidAt(LocalDateTime.now());
         if (application.getMembershipStartsOn() == null) application.setMembershipStartsOn(today);
         if (application.getMembershipEndsOn() == null) application.setMembershipEndsOn(today.plusYears(1));
+    }
+
+    private static void renew(MembershipApplication application) {
+        var today = LocalDate.now();
+        var base = application.getMembershipEndsOn() != null && !application.getMembershipEndsOn().isBefore(today)
+            ? application.getMembershipEndsOn() : today;
+        application.setStatus(MembershipStatus.ACTIVE);
+        application.setPaidAt(LocalDateTime.now());
+        if (application.getMembershipStartsOn() == null) application.setMembershipStartsOn(today);
+        application.setMembershipEndsOn(base.plusYears(1));
+        application.setRenewalReminderSentAt(null);
+        application.resetWelcomeEmail();
     }
 
     private static String id(JsonNode node) {

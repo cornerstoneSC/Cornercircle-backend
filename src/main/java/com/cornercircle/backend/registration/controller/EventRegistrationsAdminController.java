@@ -53,6 +53,14 @@ public class EventRegistrationsAdminController {
         return service.undo(request.ticketToken());
     }
 
+    @PostMapping("/{registrationId}/confirmation-email")
+    public AdminEventRegistrationResponse sendConfirmationEmail(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @PathVariable java.util.UUID registrationId) {
+        authorize(authorization);
+        return service.sendConfirmationEmail(registrationId);
+    }
+
     private void authorize(String authorization) {
         if (adminToken.length() < 32)
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Event registrations administration is not configured.");

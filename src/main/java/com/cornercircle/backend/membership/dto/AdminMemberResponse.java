@@ -26,5 +26,9 @@ public record AdminMemberResponse(
     String comments,
     String internalNotes,
     String stripeCheckoutSessionId,
-    LocalDateTime joinedAt
+    LocalDateTime joinedAt,
+    LocalDateTime welcomeEmailSentAt,
+    String welcomeEmailError,
+    String membershipAgreementVersion,
+    LocalDateTime membershipAgreementAcceptedAt
 ) {}

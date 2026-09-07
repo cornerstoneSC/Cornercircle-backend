@@ -17,7 +17,8 @@ import static org.mockito.Mockito.*;
 
 class MembersAdminServiceTest {
     private final MembershipApplicationRepository applications = mock(MembershipApplicationRepository.class);
-    private final MembersAdminService service = new MembersAdminService(applications);
+    private final MembershipEmailService emails = mock(MembershipEmailService.class);
+    private final MembersAdminService service = new MembersAdminService(applications, emails);
 
     @Test void returnsSummaryAndFiltersByNameEmailOrCity() {
         var paid = member("Maya Johnson", "maya@example.com", "Austin", MembershipStatus.ACTIVE);

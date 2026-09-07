@@ -20,6 +20,9 @@ public class MembershipController {
     @PostMapping("/{applicationId}/checkout-session")
     public CheckoutSessionResponse checkout(@PathVariable UUID applicationId) { return service.checkout(applicationId); }
 
+    @PostMapping("/{applicationId}/renewal-checkout-session")
+    public CheckoutSessionResponse renewalCheckout(@PathVariable UUID applicationId) { return service.renewalCheckout(applicationId); }
+
     @GetMapping("/{applicationId}/status")
     public MembershipStatusResponse status(@PathVariable UUID applicationId) { return service.status(applicationId); }
 }

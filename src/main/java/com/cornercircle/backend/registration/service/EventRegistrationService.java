@@ -37,15 +37,18 @@ public class EventRegistrationService {
     private final String secretKey;
     private final TicketTokenService tickets;
     private final String frontendUrl;
+    private final EventConfirmationEmailService confirmationEmails;
 
     public EventRegistrationService(EventRepository events, EventRegistrationRepository registrations,
                                     @Value("${stripe.secret-key:}") String secretKey, TicketTokenService tickets,
-                                    @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}") String frontendUrl) {
+                                    @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}") String frontendUrl,
+                                    EventConfirmationEmailService confirmationEmails) {
         this.events = events;
         this.registrations = registrations;
         this.secretKey = secretKey;
         this.tickets = tickets;
         this.frontendUrl = frontendUrl.replaceAll("/+$", "");
+        this.confirmationEmails = confirmationEmails;
     }
 
     @Transactional
@@ -78,6 +81,7 @@ public class EventRegistrationService {
             var registration = new EventRegistration(event, request.fullName(), request.email(), request.phone(), quantity, total, EventRegistrationStatus.CONFIRMED);
             registration.recordPolicyAcceptance(EVENT_POLICY_VERSION);
             registration = registrations.save(registration);
+            confirmationEmails.sendIfNeeded(registration);
             return new EventRegistrationResponse(registration.getPublicId(), registration.getStatus().name(), null);
         }
         if (secretKey == null || secretKey.isBlank()) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Stripe is not configured.");

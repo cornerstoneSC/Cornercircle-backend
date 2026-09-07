@@ -52,6 +52,13 @@ public class MembersAdminController {
         return service.updateNotes(publicId, request);
     }
 
+    @PostMapping("/{publicId}/welcome-email")
+    public AdminMemberResponse sendWelcomeEmail(@RequestHeader(value = "Authorization", required = false) String authorization,
+                                                @PathVariable UUID publicId) {
+        authorize(authorization);
+        return service.sendWelcomeEmail(publicId);
+    }
+
     private void authorize(String authorization) {
         if (adminToken.length() < 32)
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Members administration is not configured. Set MEMBERSHIP_ADMIN_TOKEN on the backend (at least 32 characters).");

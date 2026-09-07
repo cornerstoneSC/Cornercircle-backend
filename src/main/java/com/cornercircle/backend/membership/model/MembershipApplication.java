@@ -27,17 +27,26 @@ public class MembershipApplication {
     @Column(name = "goal", nullable = false, length = 200) private List<String> goals = new ArrayList<>();
     @Column(name = "membership_agreement_accepted", nullable = false) private boolean membershipAgreementAccepted;
     @Column(name = "photography_notice_acknowledged", nullable = false) private boolean photographyNoticeAcknowledged;
+    @Column(name = "membership_agreement_version", length = 40) private String membershipAgreementVersion;
+    @Column(name = "membership_agreement_accepted_at") private LocalDateTime membershipAgreementAcceptedAt;
+    @Column(name = "photography_notice_version", length = 40) private String photographyNoticeVersion;
+    @Column(name = "photography_notice_acknowledged_at") private LocalDateTime photographyNoticeAcknowledgedAt;
     @Column(columnDefinition = "TEXT") private String comments;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 32) private MembershipStatus status;
     @Column(name = "stripe_checkout_session_id", unique = true, length = 255) private String stripeCheckoutSessionId;
+    @Column(name = "stripe_checkout_url", length = 1200) private String stripeCheckoutUrl;
+    @Column(name = "checkout_created_at") private LocalDateTime checkoutCreatedAt;
     @Column(name = "stripe_customer_id", length = 255) private String stripeCustomerId;
     @Column(name = "stripe_subscription_id", unique = true, length = 255) private String stripeSubscriptionId;
     @Column(name = "stripe_payment_intent_id", unique = true, length = 255) private String stripePaymentIntentId;
     @Column(name = "paid_at") private LocalDateTime paidAt;
+    @Column(name = "amount_paid_cents") private Integer amountPaidCents;
     @Column(name = "membership_starts_on") private LocalDate membershipStartsOn;
     @Column(name = "membership_ends_on") private LocalDate membershipEndsOn;
     @Column(name = "renewal_reminder_sent_at") private LocalDateTime renewalReminderSentAt;
     @Column(name = "internal_notes", columnDefinition = "TEXT") private String internalNotes;
+    @Column(name = "welcome_email_sent_at") private LocalDateTime welcomeEmailSentAt;
+    @Column(name = "welcome_email_error", length = 500) private String welcomeEmailError;
     @Column(name = "created_at", nullable = false, updatable = false) private LocalDateTime createdAt;
     @Column(name = "updated_at", nullable = false) private LocalDateTime updatedAt;
 
@@ -67,12 +76,21 @@ public class MembershipApplication {
     public void setMembershipAgreementAccepted(boolean accepted) { this.membershipAgreementAccepted = accepted; }
     public boolean isPhotographyNoticeAcknowledged() { return photographyNoticeAcknowledged; }
     public void setPhotographyNoticeAcknowledged(boolean acknowledged) { this.photographyNoticeAcknowledged = acknowledged; }
+    public String getMembershipAgreementVersion() { return membershipAgreementVersion; }
+    public LocalDateTime getMembershipAgreementAcceptedAt() { return membershipAgreementAcceptedAt; }
+    public String getPhotographyNoticeVersion() { return photographyNoticeVersion; }
+    public LocalDateTime getPhotographyNoticeAcknowledgedAt() { return photographyNoticeAcknowledgedAt; }
+    public void recordConsent(String agreementVersion, String photographyVersion) { this.membershipAgreementAccepted = true; this.photographyNoticeAcknowledged = true; this.membershipAgreementVersion = agreementVersion; this.photographyNoticeVersion = photographyVersion; var now = LocalDateTime.now(); this.membershipAgreementAcceptedAt = now; this.photographyNoticeAcknowledgedAt = now; }
     public String getComments() { return comments; }
     public void setComments(String comments) { this.comments = comments; }
     public MembershipStatus getStatus() { return status; }
     public void setStatus(MembershipStatus status) { this.status = status; }
     public String getStripeCheckoutSessionId() { return stripeCheckoutSessionId; }
     public void setStripeCheckoutSessionId(String value) { this.stripeCheckoutSessionId = value; }
+    public String getStripeCheckoutUrl() { return stripeCheckoutUrl; }
+    public void setStripeCheckoutUrl(String value) { this.stripeCheckoutUrl = value; }
+    public LocalDateTime getCheckoutCreatedAt() { return checkoutCreatedAt; }
+    public void setCheckoutCreatedAt(LocalDateTime value) { this.checkoutCreatedAt = value; }
     public String getStripeCustomerId() { return stripeCustomerId; }
     public void setStripeCustomerId(String value) { this.stripeCustomerId = value; }
     public String getStripeSubscriptionId() { return stripeSubscriptionId; }
@@ -81,6 +99,8 @@ public class MembershipApplication {
     public void setStripePaymentIntentId(String value) { this.stripePaymentIntentId = value; }
     public LocalDateTime getPaidAt() { return paidAt; }
     public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
+    public Integer getAmountPaidCents() { return amountPaidCents; }
+    public void setAmountPaidCents(Integer value) { this.amountPaidCents = value; }
     public LocalDate getMembershipStartsOn() { return membershipStartsOn; }
     public void setMembershipStartsOn(LocalDate membershipStartsOn) { this.membershipStartsOn = membershipStartsOn; }
     public LocalDate getMembershipEndsOn() { return membershipEndsOn; }
@@ -89,6 +109,11 @@ public class MembershipApplication {
     public void setRenewalReminderSentAt(LocalDateTime renewalReminderSentAt) { this.renewalReminderSentAt = renewalReminderSentAt; }
     public String getInternalNotes() { return internalNotes; }
     public void setInternalNotes(String internalNotes) { this.internalNotes = internalNotes; }
+    public LocalDateTime getWelcomeEmailSentAt() { return welcomeEmailSentAt; }
+    public String getWelcomeEmailError() { return welcomeEmailError; }
+    public void resetWelcomeEmail() { welcomeEmailSentAt = null; welcomeEmailError = null; }
+    public void recordWelcomeEmailSent() { welcomeEmailSentAt = LocalDateTime.now(); welcomeEmailError = null; }
+    public void recordWelcomeEmailError(String value) { welcomeEmailError = value == null ? null : value.substring(0, Math.min(500, value.length())); }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

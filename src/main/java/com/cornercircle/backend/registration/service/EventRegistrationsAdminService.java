@@ -15,10 +15,12 @@ import java.util.Locale;
 public class EventRegistrationsAdminService {
     private final EventRegistrationRepository registrations;
     private final TicketTokenService tickets;
+    private final EventConfirmationEmailService confirmationEmails;
 
-    public EventRegistrationsAdminService(EventRegistrationRepository registrations, TicketTokenService tickets) {
+    public EventRegistrationsAdminService(EventRegistrationRepository registrations, TicketTokenService tickets, EventConfirmationEmailService confirmationEmails) {
         this.registrations = registrations;
         this.tickets = tickets;
+        this.confirmationEmails = confirmationEmails;
     }
 
     @Transactional(readOnly = true)
@@ -49,8 +51,19 @@ public class EventRegistrationsAdminService {
             registration.getPublicId(), registration.getFullName(), registration.getEmail(), registration.getPhone(),
             registration.getEvent().getTitle(), registration.getEvent().getSlug(), registration.getGuestCount(),
             registration.getTotalAmount(), "PAID", registration.getConfirmedAt() == null ? registration.getCreatedAt() : registration.getConfirmedAt(),
-            "CSC-" + compactId, registration.getCheckedInAt(), tickets.issue(registration.getPublicId())
+            "CSC-" + compactId, registration.getCheckedInAt(), tickets.issue(registration.getPublicId()),
+            registration.getConfirmationEmailSentAt(), registration.getConfirmationEmailError()
         );
+    }
+
+    @Transactional
+    public AdminEventRegistrationResponse sendConfirmationEmail(java.util.UUID registrationId) {
+        EventRegistration registration = registrations.findByPublicId(registrationId)
+            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Registration not found."));
+        if (registration.getStatus() != EventRegistrationStatus.CONFIRMED)
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT, "This registration is not confirmed.");
+        confirmationEmails.sendIfNeeded(registration);
+        return toResponse(registration);
     }
 
     @Transactional(readOnly = true)

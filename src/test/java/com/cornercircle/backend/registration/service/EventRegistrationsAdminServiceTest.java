@@ -18,13 +18,15 @@ class EventRegistrationsAdminServiceTest {
     private EventRegistrationRepository repository;
     private TicketTokenService tickets;
     private EventRegistrationsAdminService service;
+    private EventConfirmationEmailService confirmationEmails;
     private EventRegistration registration;
 
     @BeforeEach
     void setUp() {
         repository = mock(EventRegistrationRepository.class);
         tickets = new TicketTokenService("abcdefghijklmnopqrstuvwxyz123456");
-        service = new EventRegistrationsAdminService(repository, tickets);
+        confirmationEmails = mock(EventConfirmationEmailService.class);
+        service = new EventRegistrationsAdminService(repository, tickets, confirmationEmails);
         Event event = new Event();
         event.setTitle("Coffee Social");
         event.setSlug("coffee-social");
