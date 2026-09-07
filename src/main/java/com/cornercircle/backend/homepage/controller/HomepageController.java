@@ -31,17 +31,26 @@ public class HomepageController {
         this.homepageService = homepageService;
     }
     @PostMapping(value = "/hero/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<HomepageResponse> uploadHeroImage(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<HomepageResponse> uploadHeroImage(
+            @RequestHeader(value = "X-Admin-Content-Secret", required = false) String suppliedSecret,
+            @RequestParam("file") MultipartFile file) {
+        authorize(suppliedSecret);
         return ResponseEntity.ok(homepageService.uploadHeroImage(file));
     }
 
     @PostMapping(value = "/about/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<HomepageResponse> uploadAboutImage(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<HomepageResponse> uploadAboutImage(
+            @RequestHeader(value = "X-Admin-Content-Secret", required = false) String suppliedSecret,
+            @RequestParam("file") MultipartFile file) {
+        authorize(suppliedSecret);
         return ResponseEntity.ok(homepageService.uploadAboutImage(file));
     }
 
     @PostMapping(value = "/beliefs/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<HomepageResponse> uploadBeliefsImage(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<HomepageResponse> uploadBeliefsImage(
+            @RequestHeader(value = "X-Admin-Content-Secret", required = false) String suppliedSecret,
+            @RequestParam("file") MultipartFile file) {
+        authorize(suppliedSecret);
         return ResponseEntity.ok(homepageService.uploadBeliefsImage(file));
     }
 
