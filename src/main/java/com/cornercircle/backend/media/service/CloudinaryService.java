@@ -36,7 +36,7 @@ public class CloudinaryService {
 
             return new ImageUploadResponse(url, publicId);
 
-        } catch (IOException exception) {
+        } catch (Exception exception) {
             throw new MediaUploadException("Failed to upload image to Cloudinary", exception);
         }
     }
