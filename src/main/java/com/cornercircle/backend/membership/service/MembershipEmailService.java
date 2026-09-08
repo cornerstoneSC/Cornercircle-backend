@@ -5,7 +5,9 @@ import com.cornercircle.backend.membership.model.MembershipStatus;
 import com.cornercircle.backend.membership.repository.MembershipApplicationRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -55,6 +57,40 @@ public class MembershipEmailService {
             member.recordWelcomeEmailSent();
         } catch (Exception exception) { member.recordWelcomeEmailError(exception.getMessage() == null ? "Email delivery failed." : exception.getMessage()); }
         applications.save(member);
+    }
+
+    public void sendRenewalReminder(MembershipApplication member) {
+        if (apiKey.isBlank() || from.isBlank())
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Email delivery is not configured.");
+        if (member.getMembershipEndsOn() == null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This member does not have a renewal date.");
+        try {
+            String firstName = member.getFullName().trim().split("\\s+")[0];
+            String renewalUrl = frontendUrl + "/membership/success?application_id=" + member.getPublicId();
+            String endDate = format(member.getMembershipEndsOn());
+            String subject = "Your Cornerstone Social Circle membership renewal";
+            String html = "<!doctype html><html><body style=\"margin:0;background:#f8f5ef;color:#21162a;font-family:Arial,sans-serif\"><table role=\"presentation\" width=\"100%\"><tr><td align=\"center\" style=\"padding:40px 16px\"><table role=\"presentation\" width=\"600\" style=\"max-width:600px;background:#fffdf9;border:1px solid #d8ccbc\"><tr><td style=\"padding:42px\"><p style=\"color:#9b6a1b;text-transform:uppercase;letter-spacing:2px\">Cornerstone Social Circle</p><h1 style=\"font-family:Georgia,serif;font-size:38px;font-weight:400\">Continue another year with us</h1><p style=\"font-size:17px;line-height:1.7\">Hi " + esc(firstName) + ",</p><p style=\"font-size:17px;line-height:1.7\">Your annual Cornerstone Social Circle membership ends on <b>" + esc(endDate) + "</b>. We would love to welcome you for another year of meaningful connection.</p><a href=\"" + renewalUrl + "\" style=\"display:inline-block;background:#2b1d35;color:white;padding:14px 22px;text-decoration:none;font-weight:bold\">Renew membership</a><p style=\"margin-top:30px;color:#625b64\">Questions? Reply to this email and we’ll be happy to help.</p></td></tr></table></td></tr></table></body></html>";
+            String text = "Hi " + firstName + ",\n\nYour annual Cornerstone Social Circle membership ends on " + endDate + ". We would love to welcome you for another year.\n\nRenew membership: " + renewalUrl;
+            var payload = new LinkedHashMap<String,Object>();
+            payload.put("from", from);
+            payload.put("to", new String[]{member.getEmail()});
+            payload.put("subject", subject);
+            payload.put("html", html);
+            payload.put("text", text);
+            if (!replyTo.isBlank()) payload.put("reply_to", replyTo);
+            var request = HttpRequest.newBuilder(URI.create("https://api.resend.com/emails")).timeout(Duration.ofSeconds(12))
+                .header("Authorization", "Bearer " + apiKey).header("Content-Type", "application/json")
+                .header("User-Agent", "Cornerstone-Social-Circle/1.0")
+                .header("Idempotency-Key", "membership-renewal-reminder-" + member.getPublicId() + "-" + member.getMembershipEndsOn())
+                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload), StandardCharsets.UTF_8)).build();
+            var response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300)
+                throw new IllegalStateException("Resend returned HTTP " + response.statusCode());
+        } catch (ResponseStatusException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "The renewal reminder could not be sent.", exception);
+        }
     }
 
     private String format(java.time.LocalDate value) { return value == null ? "—" : value.format(DateTimeFormatter.ofPattern("MMMM d, yyyy")); }

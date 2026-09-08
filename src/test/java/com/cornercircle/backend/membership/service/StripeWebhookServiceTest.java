@@ -72,6 +72,20 @@ class StripeWebhookServiceTest {
         verify(membershipEmails).sendIfNeeded(application, true);
     }
 
+    @Test void partialRefundDoesNotEndMembership() throws Exception {
+        var application = new MembershipApplication(); application.setStatus(MembershipStatus.ACTIVE);
+        when(applications.findByStripePaymentIntentId("pi_123")).thenReturn(Optional.of(application));
+        service.process("evt_partial_refund", "charge.refunded", "{\"data\":{\"object\":{\"payment_intent\":\"pi_123\",\"refunded\":false}}}");
+        assertEquals(MembershipStatus.ACTIVE, application.getStatus());
+    }
+
+    @Test void fullRefundEndsMembership() throws Exception {
+        var application = new MembershipApplication(); application.setStatus(MembershipStatus.ACTIVE);
+        when(applications.findByStripePaymentIntentId("pi_123")).thenReturn(Optional.of(application));
+        service.process("evt_full_refund", "charge.refunded", "{\"data\":{\"object\":{\"payment_intent\":\"pi_123\",\"refunded\":true}}}");
+        assertEquals(MembershipStatus.REFUNDED, application.getStatus());
+    }
+
     private static String payload(UUID id) {
         return "{\"data\":{\"object\":{\"id\":\"cs_123\",\"payment_status\":\"paid\",\"amount_total\":19900,\"client_reference_id\":\"" + id + "\",\"metadata\":{\"membership_application_id\":\"" + id + "\"},\"customer\":\"cus_123\",\"payment_intent\":\"pi_123\"}}}";
     }

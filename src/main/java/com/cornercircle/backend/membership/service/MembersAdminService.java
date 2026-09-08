@@ -51,6 +51,9 @@ public class MembersAdminService {
     @Transactional
     public AdminMemberResponse recordReminder(UUID publicId) {
         var application = require(publicId);
+        if (application.getStatus() != MembershipStatus.ACTIVE || "EXPIRED".equals(paymentStatus(application)))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only active members can receive a renewal reminder.");
+        emails.sendRenewalReminder(application);
         application.setRenewalReminderSentAt(LocalDateTime.now());
         return toResponse(application);
     }

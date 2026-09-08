@@ -66,6 +66,8 @@ public class MembershipService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This membership is already active.");
         if (application.getStatus() == MembershipStatus.CANCELLED)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This membership application is cancelled.");
+        if (application.getStatus() == MembershipStatus.REFUNDED)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This membership was refunded. Submit a new membership application to join again.");
         if (application.getStripeCheckoutUrl() != null && application.getCheckoutCreatedAt() != null
             && application.getCheckoutCreatedAt().isAfter(java.time.LocalDateTime.now().minusMinutes(30)))
             return new CheckoutSessionResponse(application.getStripeCheckoutUrl());

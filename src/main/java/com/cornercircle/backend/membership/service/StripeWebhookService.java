@@ -45,7 +45,12 @@ public class StripeWebhookService {
                 updateByApplication(object, MembershipStatus.PAYMENT_FAILED);
                 updateEventRegistration(object, EventRegistrationStatus.PAYMENT_FAILED);
             }
-            case "charge.refunded" -> findByStripeReferences(object).ifPresent(application -> application.setStatus(MembershipStatus.REFUNDED));
+            case "charge.refunded" -> {
+                // Stripe also emits charge.refunded for partial refunds. Only a
+                // fully refunded charge should end the membership.
+                if (object.path("refunded").asBoolean(false))
+                    findByStripeReferences(object).ifPresent(application -> application.setStatus(MembershipStatus.REFUNDED));
+            }
             // Legacy subscription events remain supported for existing records.
             case "invoice.paid" -> findByStripeReferences(object).ifPresent(application -> application.setStatus(MembershipStatus.ACTIVE));
             case "invoice.payment_failed" -> findByStripeReferences(object).ifPresent(application -> application.setStatus(MembershipStatus.PAST_DUE));

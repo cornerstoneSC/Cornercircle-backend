@@ -46,6 +46,7 @@ class MembersAdminServiceTest {
         when(applications.findByPublicId(member.getPublicId())).thenReturn(Optional.of(member));
 
         assertNotNull(service.recordReminder(member.getPublicId()).renewalReminderSentAt());
+        verify(emails).sendRenewalReminder(member);
         assertEquals("Prefers email.", service.updateNotes(member.getPublicId(), new MemberNotesRequest("  Prefers email.  ")).internalNotes());
     }
 
