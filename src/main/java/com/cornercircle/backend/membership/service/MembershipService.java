@@ -4,6 +4,7 @@ import com.cornercircle.backend.membership.dto.*;
 import com.cornercircle.backend.membership.model.*;
 import com.cornercircle.backend.membership.payment.CheckoutGateway;
 import com.cornercircle.backend.membership.repository.MembershipApplicationRepository;
+import com.cornercircle.backend.membershippage.MembershipPricingService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,10 +18,12 @@ public class MembershipService {
     private static final String PHOTOGRAPHY_VERSION = "2026-09-07";
     private final MembershipApplicationRepository applications;
     private final CheckoutGateway checkout;
+    private final MembershipPricingService pricing;
 
-    public MembershipService(MembershipApplicationRepository applications, CheckoutGateway checkout) {
+    public MembershipService(MembershipApplicationRepository applications, CheckoutGateway checkout, MembershipPricingService pricing) {
         this.applications = applications;
         this.checkout = checkout;
+        this.pricing = pricing;
     }
 
     @Transactional
@@ -73,7 +76,7 @@ public class MembershipService {
             && application.getCheckoutCreatedAt().isAfter(java.time.LocalDateTime.now().minusMinutes(30)))
             return new CheckoutSessionResponse(application.getStripeCheckoutUrl());
         boolean renewal = application.getStatus() == MembershipStatus.EXPIRED;
-        var result = checkout.createAnnualMembershipCheckout(publicId, application.getEmail(), application.getStripeCustomerId(), renewal);
+        var result = checkout.createAnnualMembershipCheckout(publicId, application.getEmail(), application.getStripeCustomerId(), pricing.annualPriceCents(), renewal);
         application.setStripeCheckoutSessionId(result.sessionId());
         application.setStripeCheckoutUrl(result.url());
         application.setCheckoutCreatedAt(java.time.LocalDateTime.now());
@@ -91,7 +94,7 @@ public class MembershipService {
             return new CheckoutSessionResponse(application.getStripeCheckoutUrl());
         if (application.getStripeSubscriptionId() != null)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This membership already has subscription billing. Use Manage billing instead.");
-        var result = checkout.createAnnualMembershipCheckout(publicId, application.getEmail(), application.getStripeCustomerId(), true);
+        var result = checkout.createAnnualMembershipCheckout(publicId, application.getEmail(), application.getStripeCustomerId(), pricing.annualPriceCents(), true);
         application.setStripeCheckoutSessionId(result.sessionId());
         application.setStripeCheckoutUrl(result.url());
         application.setCheckoutCreatedAt(java.time.LocalDateTime.now());

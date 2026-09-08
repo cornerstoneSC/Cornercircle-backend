@@ -12,6 +12,5 @@ cloudinary:
 stripe:
   secret-key: ${STRIPE_SECRET_KEY:}
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
-  membership-price-id: ${STRIPE_MEMBERSHIP_PRICE_ID:}
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   

@@ -13,19 +13,16 @@ import java.util.UUID;
 @Component
 public class StripeCheckoutGateway implements CheckoutGateway {
     private final String secretKey;
-    private final String priceId;
     private final String frontendUrl;
 
     public StripeCheckoutGateway(@Value("${stripe.secret-key:}") String secretKey,
-                                 @Value("${stripe.membership-price-id:}") String priceId,
                                  @Value("${stripe.frontend-url:http://localhost:3000}") String frontendUrl) {
         this.secretKey = secretKey;
-        this.priceId = priceId;
         this.frontendUrl = frontendUrl.replaceAll("/+$", "");
     }
 
     @Override
-    public CheckoutResult createAnnualMembershipCheckout(UUID applicationId, String customerEmail, String customerId, boolean renewal) {
+    public CheckoutResult createAnnualMembershipCheckout(UUID applicationId, String customerEmail, String customerId, long annualPriceCents, boolean renewal) {
         requireConfigured();
         var metadataValue = applicationId.toString();
         var builder = SessionCreateParams.builder()
@@ -39,7 +36,19 @@ public class StripeCheckoutGateway implements CheckoutGateway {
             .setSubscriptionData(SessionCreateParams.SubscriptionData.builder()
                 .putMetadata("membership_application_id", metadataValue)
                 .putMetadata("membership_checkout_type", renewal ? "renewal" : "initial").build())
-            .addLineItem(SessionCreateParams.LineItem.builder().setPrice(priceId).setQuantity(1L).build());
+            .addLineItem(SessionCreateParams.LineItem.builder()
+                .setQuantity(1L)
+                .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
+                    .setCurrency("usd")
+                    .setUnitAmount(annualPriceCents)
+                    .setRecurring(SessionCreateParams.LineItem.PriceData.Recurring.builder()
+                        .setInterval(SessionCreateParams.LineItem.PriceData.Recurring.Interval.YEAR).build())
+                    .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                        .setName("Cornerstone Social Circle Annual Membership")
+                        .setDescription("Annual membership with automatic yearly renewal until canceled")
+                        .build())
+                    .build())
+                .build());
         if (customerId != null && customerId.startsWith("cus_")) builder.setCustomer(customerId);
         else builder.setCustomerEmail(customerEmail);
         try {
@@ -70,7 +79,7 @@ public class StripeCheckoutGateway implements CheckoutGateway {
     }
 
     private void requireConfigured() {
-        if (!secretKey.startsWith("sk_") || !priceId.startsWith("price_"))
+        if (!secretKey.startsWith("sk_"))
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Stripe membership checkout is not configured.");
     }
 }

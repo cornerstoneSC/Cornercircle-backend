@@ -41,6 +41,8 @@ public class MembershipPageController {
     public JsonNode save(@RequestHeader(value="Authorization", required=false) String authorization, @RequestBody JsonNode content) {
         authorize(authorization);
         validate(content);
+        long cents = content.path("annualPriceCents").asLong();
+        ((com.fasterxml.jackson.databind.node.ObjectNode) content).put("price", formatPrice(cents));
         var entity = repository.findById(1L).orElseGet(() -> new MembershipPageEntity("{}"));
         entity.setContent(content.toString());
         repository.save(entity);
@@ -49,6 +51,9 @@ public class MembershipPageController {
 
     static void validate(JsonNode content) {
         if (!content.isObject() || content.toString().length() > 60000) bad();
+        if (!content.path("annualPriceCents").canConvertToLong()) badPrice();
+        long cents = content.path("annualPriceCents").asLong();
+        if (cents < 100 || cents > 1_000_000) badPrice();
         for (String field : new String[]{"eyebrow","title","price","pricePeriod","tagline","stepOneTitle","stepOneIntro","stepTwoTitle","stepTwoIntro","stepThreeTitle","stepThreeIntro","activitiesLegend","goalsLegend","agreementTitle","agreementText","photographyTitle","photographyAcknowledgement","commentsLabel"}) text(content, field);
         list(content, "benefits", 6);
         list(content, "stepLabels", 3);
@@ -70,5 +75,14 @@ public class MembershipPageController {
 
     private static void bad() {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid Membership content. Complete all editable fields and keep the existing list lengths.");
+    }
+
+    private static void badPrice() {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Annual membership price must be between $1.00 and $10,000.00.");
+    }
+
+    private static String formatPrice(long cents) {
+        java.math.BigDecimal dollars = java.math.BigDecimal.valueOf(cents, 2).stripTrailingZeros();
+        return "$" + dollars.toPlainString();
     }
 }

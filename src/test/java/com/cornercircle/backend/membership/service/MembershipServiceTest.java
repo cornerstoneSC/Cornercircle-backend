@@ -4,6 +4,7 @@ import com.cornercircle.backend.membership.dto.MembershipApplicationRequest;
 import com.cornercircle.backend.membership.model.*;
 import com.cornercircle.backend.membership.payment.CheckoutGateway;
 import com.cornercircle.backend.membership.repository.MembershipApplicationRepository;
+import com.cornercircle.backend.membershippage.MembershipPricingService;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
@@ -13,7 +14,8 @@ import static org.mockito.Mockito.*;
 class MembershipServiceTest {
     private final MembershipApplicationRepository applications = mock(MembershipApplicationRepository.class);
     private final CheckoutGateway checkout = mock(CheckoutGateway.class);
-    private final MembershipService service = new MembershipService(applications, checkout);
+    private final MembershipPricingService pricing = mock(MembershipPricingService.class);
+    private final MembershipService service = new MembershipService(applications, checkout, pricing);
 
     @Test void storesApplicationAsPendingPayment() {
         var request = new MembershipApplicationRequest(" Gloria Example ", "GLORIA@example.com", null, "San Jose", null,
@@ -27,12 +29,14 @@ class MembershipServiceTest {
     @Test void checkoutUsesStoredEmailAndOpaqueApplicationId() {
         UUID id = UUID.randomUUID();
         var application = pending(id);
+        when(pricing.annualPriceCents()).thenReturn(24_900L);
         when(applications.findByPublicId(id)).thenReturn(Optional.of(application));
-        when(checkout.createAnnualMembershipCheckout(id, "member@example.com", null, false))
+        when(checkout.createAnnualMembershipCheckout(id, "member@example.com", null, 24_900L, false))
             .thenReturn(new CheckoutGateway.CheckoutResult("cs_test_123", "https://checkout.stripe.com/test"));
         var response = service.checkout(id);
         assertEquals("https://checkout.stripe.com/test", response.checkoutUrl());
         assertEquals("cs_test_123", application.getStripeCheckoutSessionId());
+        verify(checkout).createAnnualMembershipCheckout(id, "member@example.com", null, 24_900L, false);
     }
 
     @Test void activeMemberCannotStartAnotherCheckout() {
