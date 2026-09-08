@@ -16,3 +16,8 @@ ALTER TABLE membership_applications ADD COLUMN IF NOT EXISTS subscription_cancel
 ALTER TABLE membership_applications ADD COLUMN IF NOT EXISTS last_stripe_invoice_id VARCHAR(255);
 ALTER TABLE homepage_content ADD COLUMN IF NOT EXISTS newsletter_image_url VARCHAR(255);
 ALTER TABLE homepage_content ADD COLUMN IF NOT EXISTS newsletter_image_public_id VARCHAR(255);
+
+CREATE TABLE IF NOT EXISTS contact_page_content (
+    id BIGINT PRIMARY KEY,
+    content TEXT NOT NULL
+);
