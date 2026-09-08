@@ -28,7 +28,7 @@ class MembershipServiceTest {
         UUID id = UUID.randomUUID();
         var application = pending(id);
         when(applications.findByPublicId(id)).thenReturn(Optional.of(application));
-        when(checkout.createAnnualMembershipCheckout(id, "member@example.com", false))
+        when(checkout.createAnnualMembershipCheckout(id, "member@example.com", null, false))
             .thenReturn(new CheckoutGateway.CheckoutResult("cs_test_123", "https://checkout.stripe.com/test"));
         var response = service.checkout(id);
         assertEquals("https://checkout.stripe.com/test", response.checkoutUrl());

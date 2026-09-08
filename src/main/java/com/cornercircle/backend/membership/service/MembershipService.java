@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @Service
 public class MembershipService {
-    private static final String AGREEMENT_VERSION = "2026-09-07";
+    private static final String AGREEMENT_VERSION = "2026-09-07-recurring-v1";
     private static final String PHOTOGRAPHY_VERSION = "2026-09-07";
     private final MembershipApplicationRepository applications;
     private final CheckoutGateway checkout;
@@ -63,7 +63,8 @@ public class MembershipService {
         if (application.getStatus() == MembershipStatus.ACTIVE && application.getMembershipEndsOn() != null
             && application.getMembershipEndsOn().isBefore(java.time.LocalDate.now())) application.setStatus(MembershipStatus.EXPIRED);
         if (application.getStatus() == MembershipStatus.ACTIVE)
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "This membership is already active.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, application.getStripeSubscriptionId() == null
+                ? "This membership is already active." : "This membership already renews automatically. Use Manage billing to make changes.");
         if (application.getStatus() == MembershipStatus.CANCELLED)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This membership application is cancelled.");
         if (application.getStatus() == MembershipStatus.REFUNDED)
@@ -72,7 +73,7 @@ public class MembershipService {
             && application.getCheckoutCreatedAt().isAfter(java.time.LocalDateTime.now().minusMinutes(30)))
             return new CheckoutSessionResponse(application.getStripeCheckoutUrl());
         boolean renewal = application.getStatus() == MembershipStatus.EXPIRED;
-        var result = checkout.createAnnualMembershipCheckout(publicId, application.getEmail(), renewal);
+        var result = checkout.createAnnualMembershipCheckout(publicId, application.getEmail(), application.getStripeCustomerId(), renewal);
         application.setStripeCheckoutSessionId(result.sessionId());
         application.setStripeCheckoutUrl(result.url());
         application.setCheckoutCreatedAt(java.time.LocalDateTime.now());
@@ -88,7 +89,9 @@ public class MembershipService {
         if (application.getStripeCheckoutUrl() != null && application.getCheckoutCreatedAt() != null
             && application.getCheckoutCreatedAt().isAfter(java.time.LocalDateTime.now().minusMinutes(30)))
             return new CheckoutSessionResponse(application.getStripeCheckoutUrl());
-        var result = checkout.createAnnualMembershipCheckout(publicId, application.getEmail(), true);
+        if (application.getStripeSubscriptionId() != null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This membership already has subscription billing. Use Manage billing instead.");
+        var result = checkout.createAnnualMembershipCheckout(publicId, application.getEmail(), application.getStripeCustomerId(), true);
         application.setStripeCheckoutSessionId(result.sessionId());
         application.setStripeCheckoutUrl(result.url());
         application.setCheckoutCreatedAt(java.time.LocalDateTime.now());
@@ -101,7 +104,16 @@ public class MembershipService {
         var application = requireApplication(publicId);
         if (application.getStatus() == MembershipStatus.ACTIVE && application.getMembershipEndsOn() != null
             && application.getMembershipEndsOn().isBefore(java.time.LocalDate.now())) application.setStatus(MembershipStatus.EXPIRED);
-        return new MembershipStatusResponse(publicId, application.getStatus(), application.getStatus() == MembershipStatus.ACTIVE);
+        return new MembershipStatusResponse(publicId, application.getStatus(), application.getStatus() == MembershipStatus.ACTIVE,
+            application.getStripeSubscriptionId() != null, application.isSubscriptionCancelAtPeriodEnd(), application.getMembershipEndsOn());
+    }
+
+    @Transactional(readOnly = true)
+    public BillingPortalResponse billingPortal(UUID publicId) {
+        var application = requireApplication(publicId);
+        if (application.getStripeSubscriptionId() == null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Billing management is available after a recurring membership is activated.");
+        return new BillingPortalResponse(checkout.createBillingPortal(application.getStripeCustomerId(), publicId));
     }
 
     private MembershipApplication requireApplication(UUID publicId) {

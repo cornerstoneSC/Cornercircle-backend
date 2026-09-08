@@ -38,6 +38,10 @@ public class MembershipApplication {
     @Column(name = "checkout_created_at") private LocalDateTime checkoutCreatedAt;
     @Column(name = "stripe_customer_id", length = 255) private String stripeCustomerId;
     @Column(name = "stripe_subscription_id", unique = true, length = 255) private String stripeSubscriptionId;
+    @Column(name = "stripe_subscription_status", length = 40) private String stripeSubscriptionStatus;
+    @Column(name = "subscription_cancel_at_period_end") private boolean subscriptionCancelAtPeriodEnd;
+    @Column(name = "subscription_cancelled_at") private LocalDateTime subscriptionCancelledAt;
+    @Column(name = "last_stripe_invoice_id", length = 255) private String lastStripeInvoiceId;
     @Column(name = "stripe_payment_intent_id", unique = true, length = 255) private String stripePaymentIntentId;
     @Column(name = "paid_at") private LocalDateTime paidAt;
     @Column(name = "amount_paid_cents") private Integer amountPaidCents;
@@ -95,6 +99,14 @@ public class MembershipApplication {
     public void setStripeCustomerId(String value) { this.stripeCustomerId = value; }
     public String getStripeSubscriptionId() { return stripeSubscriptionId; }
     public void setStripeSubscriptionId(String value) { this.stripeSubscriptionId = value; }
+    public String getStripeSubscriptionStatus() { return stripeSubscriptionStatus; }
+    public void setStripeSubscriptionStatus(String value) { this.stripeSubscriptionStatus = value; }
+    public boolean isSubscriptionCancelAtPeriodEnd() { return subscriptionCancelAtPeriodEnd; }
+    public void setSubscriptionCancelAtPeriodEnd(boolean value) { this.subscriptionCancelAtPeriodEnd = value; }
+    public LocalDateTime getSubscriptionCancelledAt() { return subscriptionCancelledAt; }
+    public void setSubscriptionCancelledAt(LocalDateTime value) { this.subscriptionCancelledAt = value; }
+    public String getLastStripeInvoiceId() { return lastStripeInvoiceId; }
+    public void setLastStripeInvoiceId(String value) { this.lastStripeInvoiceId = value; }
     public String getStripePaymentIntentId() { return stripePaymentIntentId; }
     public void setStripePaymentIntentId(String value) { this.stripePaymentIntentId = value; }
     public LocalDateTime getPaidAt() { return paidAt; }

@@ -25,4 +25,7 @@ public class MembershipController {
 
     @GetMapping("/{applicationId}/status")
     public MembershipStatusResponse status(@PathVariable UUID applicationId) { return service.status(applicationId); }
+
+    @PostMapping("/{applicationId}/billing-portal")
+    public BillingPortalResponse billingPortal(@PathVariable UUID applicationId) { return service.billingPortal(applicationId); }
 }

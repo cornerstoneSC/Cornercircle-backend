@@ -30,5 +30,10 @@ public record AdminMemberResponse(
     LocalDateTime welcomeEmailSentAt,
     String welcomeEmailError,
     String membershipAgreementVersion,
-    LocalDateTime membershipAgreementAcceptedAt
+    LocalDateTime membershipAgreementAcceptedAt,
+    String stripeSubscriptionId,
+    String stripeSubscriptionStatus,
+    boolean subscriptionCancelAtPeriodEnd,
+    LocalDateTime subscriptionCancelledAt,
+    String lastStripeInvoiceId
 ) {}

@@ -86,7 +86,29 @@ class StripeWebhookServiceTest {
         assertEquals(MembershipStatus.REFUNDED, application.getStatus());
     }
 
+    @Test void renewalInvoiceSynchronizesPaidPeriodWithoutAddingAnExtraYear() throws Exception {
+        var application = new MembershipApplication(); application.setStatus(MembershipStatus.ACTIVE);
+        application.setStripeSubscriptionId("sub_123"); application.setPaidAt(java.time.LocalDateTime.now().minusYears(1));
+        when(applications.findByStripeSubscriptionId("sub_123")).thenReturn(Optional.of(application));
+        service.process("evt_renewal_invoice", "invoice.paid", "{\"data\":{\"object\":{\"id\":\"in_123\",\"subscription\":\"sub_123\",\"billing_reason\":\"subscription_cycle\",\"amount_paid\":19900,\"lines\":{\"data\":[{\"period\":{\"start\":1788739200,\"end\":1820275200}}]}}}}");
+        assertEquals(java.time.LocalDate.of(2026, 9, 7), application.getMembershipStartsOn());
+        assertEquals(java.time.LocalDate.of(2027, 9, 7), application.getMembershipEndsOn());
+        assertEquals("in_123", application.getLastStripeInvoiceId());
+        verify(membershipEmails).sendIfNeeded(application, true);
+    }
+
+    @Test void cancelledSubscriptionRemainsActiveThroughPaidPeriod() throws Exception {
+        var application = new MembershipApplication(); application.setStatus(MembershipStatus.ACTIVE);
+        application.setStripeSubscriptionId("sub_123");
+        when(applications.findByStripeSubscriptionId("sub_123")).thenReturn(Optional.of(application));
+        long future = java.time.Instant.now().plus(java.time.Duration.ofDays(30)).getEpochSecond();
+        service.process("evt_deleted", "customer.subscription.deleted", "{\"data\":{\"object\":{\"id\":\"sub_123\",\"object\":\"subscription\",\"current_period_end\":" + future + "}}}");
+        assertEquals(MembershipStatus.ACTIVE, application.getStatus());
+        assertTrue(application.isSubscriptionCancelAtPeriodEnd());
+        assertEquals("canceled", application.getStripeSubscriptionStatus());
+    }
+
     private static String payload(UUID id) {
-        return "{\"data\":{\"object\":{\"id\":\"cs_123\",\"payment_status\":\"paid\",\"amount_total\":19900,\"client_reference_id\":\"" + id + "\",\"metadata\":{\"membership_application_id\":\"" + id + "\"},\"customer\":\"cus_123\",\"payment_intent\":\"pi_123\"}}}";
+        return "{\"data\":{\"object\":{\"id\":\"cs_123\",\"payment_status\":\"paid\",\"amount_total\":19900,\"client_reference_id\":\"" + id + "\",\"metadata\":{\"membership_application_id\":\"" + id + "\"},\"customer\":\"cus_123\",\"subscription\":\"sub_123\",\"payment_intent\":\"pi_123\"}}}";
     }
 }

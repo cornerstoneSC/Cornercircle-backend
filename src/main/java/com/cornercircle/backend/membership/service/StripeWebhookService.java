@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,11 +53,14 @@ public class StripeWebhookService {
                 if (object.path("refunded").asBoolean(false))
                     findByStripeReferences(object).ifPresent(application -> application.setStatus(MembershipStatus.REFUNDED));
             }
-            // Legacy subscription events remain supported for existing records.
-            case "invoice.paid" -> findByStripeReferences(object).ifPresent(application -> application.setStatus(MembershipStatus.ACTIVE));
-            case "invoice.payment_failed" -> findByStripeReferences(object).ifPresent(application -> application.setStatus(MembershipStatus.PAST_DUE));
+            case "invoice.paid" -> invoicePaid(object);
+            case "invoice.payment_failed" -> findByStripeReferences(object).ifPresent(application -> {
+                application.setStatus(MembershipStatus.PAST_DUE);
+                application.setStripeSubscriptionStatus("past_due");
+                application.setLastStripeInvoiceId(text(object, "id"));
+            });
             case "customer.subscription.updated" -> updateSubscription(object);
-            case "customer.subscription.deleted" -> findByStripeReferences(object).ifPresent(application -> application.setStatus(MembershipStatus.CANCELLED));
+            case "customer.subscription.deleted" -> subscriptionDeleted(object);
             default -> { }
         }
         events.save(new ProcessedStripeEvent(eventId, eventType));
@@ -91,8 +96,34 @@ public class StripeWebhookService {
             if (amount != null) application.setAmountPaidCents(amount.intValue());
             application.setStripeCheckoutUrl(null); application.setCheckoutCreatedAt(null);
             if (renewal) renew(application); else activate(application);
+            if (application.getStripeSubscriptionId() != null) application.setStripeSubscriptionStatus("active");
             membershipEmails.sendIfNeeded(application, renewal);
         }
+    }
+
+    private void invoicePaid(JsonNode object) {
+        findByStripeReferences(object).ifPresent(application -> {
+            boolean renewal = "subscription_cycle".equals(text(object, "billing_reason"));
+            application.setStatus(MembershipStatus.ACTIVE);
+            application.setStripeSubscriptionStatus("active");
+            application.setLastStripeInvoiceId(text(object, "id"));
+            String subscriptionId = subscriptionId(object);
+            if (subscriptionId != null) application.setStripeSubscriptionId(subscriptionId);
+            String paymentIntentId = id(object.path("payment_intent"));
+            if (paymentIntentId != null) application.setStripePaymentIntentId(paymentIntentId);
+            Number amount = object.path("amount_paid").isNumber() ? object.path("amount_paid").numberValue() : null;
+            if (amount != null) application.setAmountPaidCents(amount.intValue());
+            var period = object.path("lines").path("data");
+            JsonNode line = period.isArray() && !period.isEmpty() ? period.get(0).path("period") : object;
+            LocalDate start = date(line.path("start").asLong(object.path("period_start").asLong(0)));
+            LocalDate end = date(line.path("end").asLong(object.path("period_end").asLong(0)));
+            if (start != null) application.setMembershipStartsOn(start);
+            if (end != null) application.setMembershipEndsOn(end);
+            application.setPaidAt(LocalDateTime.now());
+            application.setRenewalReminderSentAt(null);
+            if (renewal) application.resetWelcomeEmail();
+            membershipEmails.sendIfNeeded(application, renewal);
+        });
     }
 
     private void updateByApplication(JsonNode object, MembershipStatus status) {
@@ -113,7 +144,30 @@ public class StripeWebhookService {
             case "canceled", "paused" -> MembershipStatus.CANCELLED;
             default -> application.get().getStatus();
         };
+        application.get().setStripeSubscriptionStatus(stripeStatus);
+        application.get().setSubscriptionCancelAtPeriodEnd(object.path("cancel_at_period_end").asBoolean(false));
+        long cancelledAt = object.path("canceled_at").asLong(0);
+        application.get().setSubscriptionCancelledAt(cancelledAt > 0 ? dateTime(cancelledAt) : null);
+        LocalDate start = subscriptionPeriodDate(object, "current_period_start");
+        LocalDate end = subscriptionPeriodDate(object, "current_period_end");
+        if (start != null) application.get().setMembershipStartsOn(start);
+        if (end != null) application.get().setMembershipEndsOn(end);
+        if (status == MembershipStatus.CANCELLED && end != null && !end.isBefore(LocalDate.now())) status = MembershipStatus.ACTIVE;
         application.get().setStatus(status);
+    }
+
+    private void subscriptionDeleted(JsonNode object) {
+        findByStripeReferences(object).ifPresent(application -> {
+            application.setStripeSubscriptionStatus("canceled");
+            application.setSubscriptionCancelAtPeriodEnd(true);
+            long cancelledAt = object.path("canceled_at").asLong(0);
+            application.setSubscriptionCancelledAt(cancelledAt > 0 ? dateTime(cancelledAt) : LocalDateTime.now());
+            LocalDate end = subscriptionPeriodDate(object, "current_period_end");
+            if (end != null) application.setMembershipEndsOn(end);
+            if (application.getMembershipEndsOn() != null && !application.getMembershipEndsOn().isBefore(LocalDate.now()))
+                application.setStatus(MembershipStatus.ACTIVE);
+            else application.setStatus(MembershipStatus.CANCELLED);
+        });
     }
 
     private Optional<MembershipApplication> findByStripeReferences(JsonNode object) {
@@ -123,8 +177,7 @@ public class StripeWebhookService {
             var found = applications.findByStripePaymentIntentId(paymentIntentId);
             if (found.isPresent()) return found;
         }
-        String subscriptionId = id(object.path("subscription"));
-        if (subscriptionId == null) subscriptionId = id(object.path("parent").path("subscription_details").path("subscription"));
+        String subscriptionId = subscriptionId(object);
         if (subscriptionId == null && "subscription".equals(text(object, "object"))) subscriptionId = text(object, "id");
         if (subscriptionId != null) {
             var found = applications.findByStripeSubscriptionId(subscriptionId);
@@ -132,6 +185,30 @@ public class StripeWebhookService {
         }
         String customerId = id(object.path("customer"));
         return customerId == null ? Optional.empty() : applications.findByStripeCustomerId(customerId);
+    }
+
+    private static String subscriptionId(JsonNode object) {
+        String value = id(object.path("subscription"));
+        if (value == null) value = id(object.path("parent").path("subscription_details").path("subscription"));
+        if (value == null && "subscription".equals(text(object, "object"))) value = text(object, "id");
+        return value;
+    }
+
+    private static LocalDate subscriptionPeriodDate(JsonNode object, String field) {
+        long timestamp = object.path(field).asLong(0);
+        if (timestamp == 0) {
+            JsonNode items = object.path("items").path("data");
+            if (items.isArray() && !items.isEmpty()) timestamp = items.get(0).path(field).asLong(0);
+        }
+        return date(timestamp);
+    }
+
+    private static LocalDate date(long epochSeconds) {
+        return epochSeconds <= 0 ? null : Instant.ofEpochSecond(epochSeconds).atZone(ZoneOffset.UTC).toLocalDate();
+    }
+
+    private static LocalDateTime dateTime(long epochSeconds) {
+        return Instant.ofEpochSecond(epochSeconds).atZone(ZoneOffset.UTC).toLocalDateTime();
     }
 
     private static void activate(MembershipApplication application) {

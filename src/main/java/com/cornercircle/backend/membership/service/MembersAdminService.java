@@ -51,6 +51,8 @@ public class MembersAdminService {
     @Transactional
     public AdminMemberResponse recordReminder(UUID publicId) {
         var application = require(publicId);
+        if (application.getStripeSubscriptionId() != null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This membership renews automatically and does not need a manual renewal reminder.");
         if (application.getStatus() != MembershipStatus.ACTIVE || "EXPIRED".equals(paymentStatus(application)))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only active members can receive a renewal reminder.");
         emails.sendRenewalReminder(application);
@@ -91,7 +93,9 @@ public class MembersAdminService {
             application.isMembershipAgreementAccepted(), application.isPhotographyNoticeAcknowledged(),
             application.getInspiredBy(), application.getComments(), application.getInternalNotes(),
             application.getStripeCheckoutSessionId(), application.getCreatedAt(), application.getWelcomeEmailSentAt(),
-            application.getWelcomeEmailError(), application.getMembershipAgreementVersion(), application.getMembershipAgreementAcceptedAt()
+            application.getWelcomeEmailError(), application.getMembershipAgreementVersion(), application.getMembershipAgreementAcceptedAt(),
+            application.getStripeSubscriptionId(), application.getStripeSubscriptionStatus(), application.isSubscriptionCancelAtPeriodEnd(),
+            application.getSubscriptionCancelledAt(), application.getLastStripeInvoiceId()
         );
     }
 
