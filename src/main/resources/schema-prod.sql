@@ -17,6 +17,20 @@ ALTER TABLE membership_applications ADD COLUMN IF NOT EXISTS last_stripe_invoice
 ALTER TABLE homepage_content ADD COLUMN IF NOT EXISTS newsletter_image_url VARCHAR(255);
 ALTER TABLE homepage_content ADD COLUMN IF NOT EXISTS newsletter_image_public_id VARCHAR(255);
 
+ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS source VARCHAR(120);
+ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS resend_contact_id VARCHAR(100);
+ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS resend_sync_status VARCHAR(20) NOT NULL DEFAULT 'PENDING';
+ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS resend_sync_error VARCHAR(500);
+ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS welcome_email_sent_at TIMESTAMP;
+ALTER TABLE newsletter_subscribers ADD COLUMN IF NOT EXISTS welcome_email_error VARCHAR(500);
+CREATE INDEX IF NOT EXISTS idx_newsletter_status ON newsletter_subscribers(status);
+CREATE INDEX IF NOT EXISTS idx_newsletter_subscribed_at ON newsletter_subscribers(subscribed_at);
+
+CREATE TABLE IF NOT EXISTS newsletter_webhook_events (
+    event_id VARCHAR(255) PRIMARY KEY,
+    processed_at TIMESTAMP NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS contact_page_content (
     id BIGINT PRIMARY KEY,
     content TEXT NOT NULL

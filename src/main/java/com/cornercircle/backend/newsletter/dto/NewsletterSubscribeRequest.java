@@ -1,2 +1,3 @@
 package com.cornercircle.backend.newsletter.dto;
-public record NewsletterSubscribeRequest(String email,String website){}
+
+public record NewsletterSubscribeRequest(String email, String website, String source) {}

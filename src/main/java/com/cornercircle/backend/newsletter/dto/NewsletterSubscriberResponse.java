@@ -1,3 +1,17 @@
 package com.cornercircle.backend.newsletter.dto;
-import com.cornercircle.backend.newsletter.model.NewsletterStatus; import java.time.LocalDateTime; import java.util.UUID;
-public record NewsletterSubscriberResponse(Long id,String email,NewsletterStatus status,LocalDateTime subscribedAt,LocalDateTime unsubscribedAt,UUID unsubscribeToken){}
+
+import com.cornercircle.backend.newsletter.model.NewsletterStatus;
+import com.cornercircle.backend.newsletter.model.NewsletterSyncStatus;
+import java.time.LocalDateTime;
+
+public record NewsletterSubscriberResponse(
+        Long id,
+        String email,
+        NewsletterStatus status,
+        String source,
+        NewsletterSyncStatus resendSyncStatus,
+        String resendSyncError,
+        LocalDateTime subscribedAt,
+        LocalDateTime unsubscribedAt,
+        LocalDateTime welcomeEmailSentAt
+) {}
