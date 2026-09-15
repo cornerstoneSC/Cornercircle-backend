@@ -14,5 +14,6 @@ public record ConsultationCreateRequest(
     @Size(max=180) String organization,
     LocalDate preferredDate,
     @Size(max=40) String preferredTime,
-    @Size(max=3000) String notes
+    @Size(max=3000) String notes,
+    @Size(max=200) String website
 ) {}

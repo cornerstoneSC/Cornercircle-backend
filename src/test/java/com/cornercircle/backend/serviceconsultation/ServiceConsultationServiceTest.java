@@ -14,11 +14,15 @@ class ServiceConsultationServiceTest {
     final ServiceConsultationService service=new ServiceConsultationService(repository);
     @Test void createsCompanionshipRequest(){
         when(repository.save(any())).thenAnswer(invocation->invocation.getArgument(0));
-        var result=service.create(new ConsultationCreateRequest(ConsultationType.COMPANIONSHIP," Gloria  Djonret ","GLORIA@example.com","555-0100",null,LocalDate.now().plusDays(2),"9:00 AM","Weekly visits"));
+        var result=service.create(new ConsultationCreateRequest(ConsultationType.COMPANIONSHIP," Gloria  Djonret ","GLORIA@example.com","555-0100",null,LocalDate.now().plusDays(2),"9:00 AM","Weekly visits",""));
         assertEquals("Gloria Djonret",result.name()); assertEquals("gloria@example.com",result.email()); assertEquals(ConsultationStatus.REQUESTED,result.status());
     }
     @Test void eventPlanningRequiresOrganization(){
-        assertEquals(400,assertThrows(ResponseStatusException.class,()->service.create(new ConsultationCreateRequest(ConsultationType.EVENT_PLANNING,"Gloria","gloria@example.com",null,null,null,null,null))).getStatusCode().value());
+        assertEquals(400,assertThrows(ResponseStatusException.class,()->service.create(new ConsultationCreateRequest(ConsultationType.EVENT_PLANNING,"Gloria","gloria@example.com",null,null,null,null,null,""))).getStatusCode().value());
+        verifyNoInteractions(repository);
+    }
+    @Test void rejectsFilledHoneypot(){
+        assertEquals(400,assertThrows(ResponseStatusException.class,()->service.create(new ConsultationCreateRequest(ConsultationType.COMPANIONSHIP,"Gloria","gloria@example.com",null,null,null,null,null,"spam.example"))).getStatusCode().value());
         verifyNoInteractions(repository);
     }
     @Test void updatesStatusAndNotes(){

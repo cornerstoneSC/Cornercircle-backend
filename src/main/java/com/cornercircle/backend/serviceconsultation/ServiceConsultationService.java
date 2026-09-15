@@ -14,6 +14,7 @@ public class ServiceConsultationService {
     private final ServiceConsultationRepository repository;
     public ServiceConsultationService(ServiceConsultationRepository repository){this.repository=repository;}
     @Transactional public ConsultationResponse create(ConsultationCreateRequest request){
+        if(!blank(request.website())) throw new ResponseStatusException(BAD_REQUEST,"Unable to submit consultation request.");
         if(request.preferredDate()!=null && request.preferredDate().isBefore(LocalDate.now())) throw new ResponseStatusException(BAD_REQUEST,"Preferred date cannot be in the past.");
         if(request.type()==ConsultationType.EVENT_PLANNING && blank(request.organization())) throw new ResponseStatusException(BAD_REQUEST,"Organization or retirement-home name is required for event planning.");
         var value=new ServiceConsultation(request.type(),clean(request.name()),clean(request.email()).toLowerCase());
