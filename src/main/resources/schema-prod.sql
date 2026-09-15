@@ -52,3 +52,5 @@ ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS display_name VARCHAR(160)
 ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS email VARCHAR(254);
 ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
 ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS last_sign_in_at TIMESTAMP;
+UPDATE admin_credentials SET display_name = 'Admin User' WHERE display_name IS NULL OR display_name = '';
+UPDATE admin_credentials SET email = username WHERE email IS NULL OR email = '';
