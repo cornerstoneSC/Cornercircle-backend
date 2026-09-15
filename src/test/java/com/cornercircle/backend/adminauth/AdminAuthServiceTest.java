@@ -22,8 +22,8 @@ class AdminAuthServiceTest {
         when(repository.save(any())).thenAnswer(invocation -> { var value = invocation.<AdminCredential>getArgument(0); stored.set(value); return value; });
         var service = new AdminAuthService(repository, new ObjectMapper(), "admin@example.com", "a-secure-bootstrap-password", "admin@example.com", "", "", "http://localhost:3000");
 
-        assertTrue(service.authenticate("admin@example.com", "a-secure-bootstrap-password"));
-        assertFalse(service.authenticate("admin@example.com", "wrong-password"));
+        assertEquals(AdminAuthService.AuthenticationResult.AUTHENTICATED, service.authenticate("admin@example.com", "a-secure-bootstrap-password"));
+        assertEquals(AdminAuthService.AuthenticationResult.REJECTED, service.authenticate("admin@example.com", "wrong-password"));
         verify(repository, atLeastOnce()).save(any(AdminCredential.class));
     }
 

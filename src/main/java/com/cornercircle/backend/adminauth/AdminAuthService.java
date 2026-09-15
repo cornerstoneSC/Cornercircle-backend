@@ -37,11 +37,12 @@ public class AdminAuthService {
     }
 
     @Transactional
-    public boolean authenticate(String username, String password) {
+    public AuthenticationResult authenticate(String username, String password) {
         ensureBootstrap();
         AdminCredential credential = credentials.findByUsernameIgnoreCase(clean(username)).orElseGet(() -> credentials.findByEmailIgnoreCase(clean(username)).orElse(null));
-        if(credential==null||!credential.isActive()||!passwords.matches(password==null?"":password,credential.getPasswordHash()))return false;
-        credential.recordSignIn(); credentials.save(credential); return true;
+        if(credential==null&&credentials.count()==0)return AuthenticationResult.NOT_CONFIGURED;
+        if(credential==null||!credential.isActive()||!passwords.matches(password==null?"":password,credential.getPasswordHash()))return AuthenticationResult.REJECTED;
+        credential.recordSignIn(); credentials.save(credential); return AuthenticationResult.AUTHENTICATED;
     }
 
     @Transactional
@@ -92,4 +93,5 @@ public class AdminAuthService {
     private String hash(String value) { try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest((value==null?"":value).getBytes(StandardCharsets.UTF_8))); } catch(Exception e){throw new IllegalStateException(e);} }
     private String clean(String value) { return value == null ? "" : value.trim(); }
     public record AdminSummary(Long id,String displayName,String email,LocalDateTime lastSignInAt,boolean active){static AdminSummary from(AdminCredential value){return new AdminSummary(value.getId(),value.getDisplayName(),value.getEmail(),value.getLastSignInAt(),value.isActive());}}
+    public enum AuthenticationResult { AUTHENTICATED, REJECTED, NOT_CONFIGURED }
 }
