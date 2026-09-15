@@ -35,3 +35,20 @@ CREATE TABLE IF NOT EXISTS contact_page_content (
     id BIGINT PRIMARY KEY,
     content TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS admin_credentials (
+    id BIGINT PRIMARY KEY,
+    username VARCHAR(254) NOT NULL UNIQUE,
+    display_name VARCHAR(160) NOT NULL,
+    email VARCHAR(254) NOT NULL UNIQUE,
+    password_hash VARCHAR(100) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    last_sign_in_at TIMESTAMP,
+    reset_token_hash VARCHAR(64),
+    reset_token_expires_at TIMESTAMP,
+    password_changed_at TIMESTAMP
+);
+ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS display_name VARCHAR(160);
+ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS email VARCHAR(254);
+ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE admin_credentials ADD COLUMN IF NOT EXISTS last_sign_in_at TIMESTAMP;
