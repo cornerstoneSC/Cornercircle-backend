@@ -48,6 +48,7 @@ public class ServicesPageController {
     }
     static void validate(JsonNode content) {
         if (!content.isObject() || content.toString().length()>60000) bad();
+        if (content.path("schemaVersion").asInt() == 2) { validateCurrent(content); return; }
         for (String field : new String[]{"heroLabel","heroTitle","heroDescription","heroCta","howLabel","heroImage","heroAlt","gardenImage","gardenAlt","note","approachTitle","approachDescription","stepsTitle","faqTitle","enquiryTitle","enquiryDescription"}) text(content,field);
         for (String field : new String[]{"heroImage","gardenImage"}) {
             String url=content.path(field).asText();
@@ -62,6 +63,15 @@ public class ServicesPageController {
             for(JsonNode item:items) if(!item.isTextual() || item.asText().isBlank() || item.asText().length()>500) bad();
         }
     }
+    private static void validateCurrent(JsonNode content) {
+        JsonNode main=content.path("main"), companionship=content.path("companionship"), event=content.path("eventPlanning");
+        for(String field:new String[]{"eyebrow","title","description"}) text(main,field);
+        for(String field:new String[]{"eyebrow","title","description","primaryCta","secondaryCta","hourlyRate","minimum","startingTotal"}) text(companionship,field);
+        JsonNode audience=companionship.path("audience");
+        if(!audience.isArray() || audience.size()!=4) bad();
+        for(JsonNode item:audience) if(!item.isTextual() || item.asText().isBlank() || item.asText().length()>500) bad();
+        for(String field:new String[]{"eyebrow","title","description","primaryCta","secondaryCta"}) text(event,field);
+    }
     private static void rows(JsonNode node,String field,int count,String[] fields) {
         JsonNode rows=node.path(field);
         if(!rows.isArray() || rows.size()!=count) bad();
@@ -71,5 +81,5 @@ public class ServicesPageController {
         JsonNode value=node.path(field);
         if(!value.isTextual() || value.asText().isBlank() || value.asText().length()>3000) bad();
     }
-    private static void bad() { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid Services content. Complete all fields and keep four offerings, three steps and four FAQs."); }
+    private static void bad() { throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid Services content. Complete every required field and keep the required list items."); }
 }

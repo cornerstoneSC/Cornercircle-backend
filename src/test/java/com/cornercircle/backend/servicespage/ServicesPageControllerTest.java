@@ -54,4 +54,14 @@ class ServicesPageControllerTest {
         assertThrows(ResponseStatusException.class,()->controller(token).save("Bearer "+token,invalid));
         verifyNoInteractions(repository);
     }
+    @Test void currentServicesContentCanBeSaved() {
+        var node=mapper.createObjectNode().put("schemaVersion",2);
+        var main=node.putObject("main"); for(String field:new String[]{"eyebrow","title","description"}) main.put(field,"Content");
+        var companionship=node.putObject("companionship"); for(String field:new String[]{"eyebrow","title","description","primaryCta","secondaryCta","hourlyRate","minimum","startingTotal"}) companionship.put(field,"Content");
+        var audience=companionship.putArray("audience"); for(int i=0;i<4;i++) audience.add("Audience");
+        var event=node.putObject("eventPlanning"); for(String field:new String[]{"eyebrow","title","description","primaryCta","secondaryCta"}) event.put(field,"Content");
+        when(repository.findById(1L)).thenReturn(Optional.empty());
+        assertEquals(node,controller(token).save("Bearer "+token,node));
+        verify(repository).save(any(ServicesPageEntity.class));
+    }
 }
