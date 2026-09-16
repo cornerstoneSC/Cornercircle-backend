@@ -36,6 +36,25 @@ CREATE TABLE IF NOT EXISTS contact_page_content (
     content TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS service_consultations (
+    id UUID PRIMARY KEY,
+    type VARCHAR(32) NOT NULL,
+    status VARCHAR(24) NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    email VARCHAR(180) NOT NULL,
+    phone VARCHAR(40),
+    organization VARCHAR(180),
+    preferred_date DATE,
+    preferred_time VARCHAR(40),
+    client_notes VARCHAR(3000),
+    admin_notes VARCHAR(3000),
+    google_calendar_event_id VARCHAR(220),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_service_consultation_status ON service_consultations(status);
+CREATE INDEX IF NOT EXISTS idx_service_consultation_email ON service_consultations(email);
+
 CREATE TABLE IF NOT EXISTS admin_credentials (
     id BIGINT PRIMARY KEY,
     username VARCHAR(254) NOT NULL UNIQUE,
