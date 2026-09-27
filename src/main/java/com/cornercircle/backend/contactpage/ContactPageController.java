@@ -31,6 +31,7 @@ public class ContactPageController {
     private static void validate(JsonNode content) {
         if (!content.isObject() || content.toString().length()>20000) bad();
         for (String field:new String[]{"eyebrow","title","accentTitle","description","imageUrl","imageAlt","imageNote","formLabel","openingSoonLabel","openingSoonTitle","openingSoonDescription"}) { JsonNode value=content.path(field); if(!value.isTextual()||value.asText().isBlank()||value.asText().length()>3000) bad(); }
+        if (!content.path("enquiriesEnabled").isBoolean()) bad();
         if(!content.path("imageUrl").asText().matches("(/images/[^\\s]*|https://[^\\s]+)")) bad();
     }
     private static void bad(){ throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Complete all Contact page fields."); }
