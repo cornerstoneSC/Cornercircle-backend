@@ -36,4 +36,20 @@ class AdminAuthServiceTest {
         assertFalse(service.resetPassword("invalid", "short"));
         assertFalse(service.resetPassword("invalid", "a-long-enough-password"));
     }
+
+    @Test
+    void authorizesGoogleLoginOnlyForAnActiveAdministratorEmail() {
+        var repository = mock(AdminCredentialRepository.class);
+        var admin = new AdminCredential(2L, "Google Admin", "admin@example.com", "unused");
+        when(repository.count()).thenReturn(1L);
+        when(repository.findById(1L)).thenReturn(Optional.empty());
+        when(repository.findByEmailIgnoreCase(anyString())).thenAnswer(invocation ->
+                invocation.<String>getArgument(0).trim().equalsIgnoreCase("admin@example.com") ? Optional.of(admin) : Optional.empty());
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        var service = new AdminAuthService(repository, new ObjectMapper(), "", "", "", "", "", "http://localhost:3000");
+
+        assertEquals("admin@example.com", service.authenticateGoogle(" ADMIN@example.com ").email());
+        assertNull(service.authenticateGoogle("other@example.com"));
+        verify(repository).save(admin);
+    }
 }

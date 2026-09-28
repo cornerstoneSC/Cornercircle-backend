@@ -46,6 +46,15 @@ public class AdminAuthService {
     }
 
     @Transactional
+    public AdminSummary authenticateGoogle(String email) {
+        ensureBootstrap();
+        AdminCredential credential = credentials.findByEmailIgnoreCase(clean(email)).filter(AdminCredential::isActive).orElse(null);
+        if (credential == null) return null;
+        credential.recordSignIn();
+        return AdminSummary.from(credentials.save(credential));
+    }
+
+    @Transactional
     public void requestReset(String suppliedEmail) {
         ensureBootstrap();
         AdminCredential credential = credentials.findByEmailIgnoreCase(clean(suppliedEmail)).filter(AdminCredential::isActive).orElse(null);
