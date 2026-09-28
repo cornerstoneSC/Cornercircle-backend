@@ -72,9 +72,6 @@ public class MembershipService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This membership application is cancelled.");
         if (application.getStatus() == MembershipStatus.REFUNDED)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This membership was refunded. Submit a new membership application to join again.");
-        if (application.getStripeCheckoutUrl() != null && application.getCheckoutCreatedAt() != null
-            && application.getCheckoutCreatedAt().isAfter(java.time.LocalDateTime.now().minusMinutes(30)))
-            return new CheckoutSessionResponse(application.getStripeCheckoutUrl());
         boolean renewal = application.getStatus() == MembershipStatus.EXPIRED;
         var result = checkout.createAnnualMembershipCheckout(publicId, application.getEmail(), application.getStripeCustomerId(), pricing.annualPriceCents(), renewal);
         application.setStripeCheckoutSessionId(result.sessionId());
@@ -89,9 +86,6 @@ public class MembershipService {
         var application = requireApplication(publicId);
         if (application.getStatus() != MembershipStatus.ACTIVE && application.getStatus() != MembershipStatus.EXPIRED)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This membership is not eligible for renewal.");
-        if (application.getStripeCheckoutUrl() != null && application.getCheckoutCreatedAt() != null
-            && application.getCheckoutCreatedAt().isAfter(java.time.LocalDateTime.now().minusMinutes(30)))
-            return new CheckoutSessionResponse(application.getStripeCheckoutUrl());
         if (application.getStripeSubscriptionId() != null)
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This membership already has subscription billing. Use Manage billing instead.");
         var result = checkout.createAnnualMembershipCheckout(publicId, application.getEmail(), application.getStripeCustomerId(), pricing.annualPriceCents(), true);
