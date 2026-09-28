@@ -31,6 +31,8 @@ public class StripeCheckoutGateway implements CheckoutGateway {
             .setSuccessUrl(frontendUrl + "/membership/success?application_id=" + metadataValue + "&session_id={CHECKOUT_SESSION_ID}")
             .setCancelUrl(frontendUrl + "/membership?payment=cancelled")
             .setAllowPromotionCodes(true)
+            .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
+            .addPaymentMethodType(SessionCreateParams.PaymentMethodType.US_BANK_ACCOUNT)
             .putMetadata("membership_application_id", metadataValue)
             .putMetadata("membership_checkout_type", renewal ? "renewal" : "initial")
             .setSubscriptionData(SessionCreateParams.SubscriptionData.builder()
