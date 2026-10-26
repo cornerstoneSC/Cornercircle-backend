@@ -18,6 +18,7 @@ import java.util.*;
 
 @Service
 public class AdminAuthService {
+    private static final String OWNER_EMAIL = "hello@cornerstonesocialcircle.com";
     private static final Logger log = LoggerFactory.getLogger(AdminAuthService.class);
     private final AdminCredentialRepository credentials;
     private final ObjectMapper mapper;
@@ -77,7 +78,7 @@ public class AdminAuthService {
 
     @Transactional public List<AdminSummary> list(){ensureBootstrap();return credentials.findAll().stream().sorted(Comparator.comparing(AdminCredential::getDisplayName,String.CASE_INSENSITIVE_ORDER)).map(AdminSummary::from).toList();}
     @Transactional public AdminSummary add(String name,String email){String cleanEmail=clean(email).toLowerCase(Locale.ROOT),cleanName=clean(name);if(cleanName.isBlank()||!cleanEmail.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")||credentials.findByEmailIgnoreCase(cleanEmail).isPresent())throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"Enter a unique administrator name and email.");long id=credentials.findAll().stream().mapToLong(AdminCredential::getId).max().orElse(0)+1;var admin=credentials.save(new AdminCredential(id,cleanName,cleanEmail,passwords.encode(UUID.randomUUID().toString()+UUID.randomUUID())));requestReset(cleanEmail);return AdminSummary.from(admin);}
-    @Transactional public AdminSummary setActive(Long id,boolean active){var admin=credentials.findById(id).orElseThrow(()->new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));if(!active&&admin.isActive()&&credentials.countByActiveTrue()<=1)throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"The final active administrator cannot be disabled.");admin.setActive(active);return AdminSummary.from(credentials.save(admin));}
+    @Transactional public AdminSummary setActive(Long id,boolean active){var admin=credentials.findById(id).orElseThrow(()->new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));if(OWNER_EMAIL.equalsIgnoreCase(admin.getEmail()))throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"The owner administrator cannot be enabled or disabled.");if(!active&&admin.isActive()&&credentials.countByActiveTrue()<=1)throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"The final active administrator cannot be disabled.");admin.setActive(active);return AdminSummary.from(credentials.save(admin));}
     @Transactional public void resetFor(Long id){var admin=credentials.findById(id).orElseThrow();requestReset(admin.getEmail());}
     private void ensureBootstrap() {
         if(credentials.count()>0){credentials.findById(1L).ifPresent(value->{value.repairProfile("Admin User",adminEmail.isBlank()?bootstrapUsername:adminEmail);credentials.save(value);});return;}
